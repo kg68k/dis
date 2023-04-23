@@ -87,7 +87,8 @@ SRCS		= analyze.c \
 
 OBJS		= $(addsuffix .o,$(basename $(SRCS)))
 
-DOCS		= $(addprefix docs/,gpl-3.0.txt labelfile.txt README.txt table.txt tablefile.txt)
+DOCS		= analysis.txt ChangeLog.txt gpl-3.0.txt labelfile.txt README.txt \
+		  table.txt tablefile.txt
 
 INCS		= $(addprefix include/,doscall.mac fefunc.mac iocscall.mac sxcall.mac)
 
@@ -120,7 +121,7 @@ bin/$(PROGRAM): bin $(PROGRAM)
 	cp $(PROGRAM) $@
 	lzx -S $@
 
-dis.zip: bin/$(PROGRAM) $(DOCS) $(INCS)
+dis.zip: bin/$(PROGRAM) $(addprefix docs/,$(DOCS)) $(INCS)
 	rm -f $@
 	zip -9 $@ $^
 endif
