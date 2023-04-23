@@ -1,178 +1,159 @@
-/* $Id: etc.c,v 1.1 1996/11/07 08:03:32 ryo freeze $
- *
- *	ソースコードジェネレータ
- *	雑用ルーチン
- *	Copyright (C) 1989,1990 K.Abe
- *	All rights reserved.
- *	Copyright (C) 1997-2010 Tachibana
- *
- */
+// ソースコードジェネレータ
+// 雑用ルーチン
+// Copyright (C) 1989,1990 K.Abe
+// All rights reserved.
+// Copyright (C) 1997-2023 TcbnErik
 
-#include <stdio.h>
-#include <ctype.h>	/* isxdigit isdigit */
-#include <stdlib.h>	/* exit(), EXIT_FAILURE */
+#include "etc.h"
+
+#include <ctype.h> /* isxdigit isdigit */
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h> /* exit(), EXIT_FAILURE */
 
 #include "estruct.h"
-#include "etc.h"
 #include "global.h"
 #include "label.h"
 #include "offset.h"
 #include "symbol.h"
 
+#define ARRAYBUFFER_INITIAL_HALF 32
+#define ARRAYBUFFER_INCREASE_RATIO 2
 
-/* function in main.c */
-extern void free_load_buffer (void);
-extern void print_title (void);
+// ArrayBufferの内部バッファを解放する
+//    ArrayBufferは引き続き使用可能
+void freeArrayBuffer(ArrayBuffer* ab) { initArrayBuffer(ab, ab->bytes); }
 
-
-extern ULONG
-atox (char* p)
-{
-    ULONG val = 0;
-
-    if (p[0] == (char)'$')
-	p++;
-    /* 0x... なら頭の 0x を取り除く */
-    else if (p[0] == (char)'0' && p[1] == (char)'x' && p[2])
-	p += 2;
-
-    while (isxdigit (*(unsigned char*)p)) {
-	unsigned char c = *p++;
-	val <<= 4;
-	if (isdigit (c))
-	    val += c - '0';
-	else
-	    val += tolower (c) - 'a' + 10;
-    }
-    return val;
+// ArrayBufferを初期化する
+void initArrayBuffer(ArrayBuffer* ab, size_t bytes) {
+  ab->buffer = ab->write = NULL;
+  ab->capacity = ab->count = 0;
+  ab->bytes = bytes;
+  ab->isFrozen = FALSE;
 }
 
+// ArrayBufferの内部バッファを確保または拡大する
+void secureArrayBufferCapacity(ArrayBuffer* ab) {
+  size_t offset;
+  size_t cap = ab->capacity;
 
-/* フォーマット文字列を表示してエラー終了する. */
-extern void
-err (const char* fmt, ...)
-{
-    va_list ap;
+  if (ab->isFrozen) internalError(__FILE__, __LINE__, "ArrayBuffer is frozen.");
 
-    print_title ();
-    va_start (ap, fmt);
-    vfprintf (stderr, fmt, ap);
-    va_end (ap);
+  if (cap == 0) cap = ARRAYBUFFER_INITIAL_HALF;
+  ab->capacity = cap = (cap * ARRAYBUFFER_INCREASE_RATIO);
 
-    free_labelbuf ();
-    free_relocate_buffer ();
-    free_symbuf ();
-    free_load_buffer ();
-
-    exit (EXIT_FAILURE);
+  offset = (char*)ab->write - (char*)ab->buffer;
+  ab->buffer = Realloc(ab->buffer, cap * ab->bytes);
+  ab->write = (char*)ab->buffer + offset;
 }
 
+// ArrayBufferの内部バッファと要素数を取得する
+//   内部バッファが確保されていない場合はNULLを返す。
+//
+// 呼び出し後は書き込み禁止になり、freeArrayBuffer()で解除される。
+void* getArrayBufferRawPointer(ArrayBuffer* ab, size_t* countPtr) {
+  freezeArrayBuffer(ab);
+
+  *countPtr = ab->count;
+  return ab->buffer;
+}
+
+// ArrayBufferを書き込み禁止にする
+//   内部バッファは使用しているサイズに切り詰められる。
+void freezeArrayBuffer(ArrayBuffer* ab) {
+  size_t size = (char*)ab->write - (char*)ab->buffer;
+
+  ab->isFrozen = TRUE;
+  ab->capacity = ab->count;
+  if (ab->capacity) ab->buffer = Realloc(ab->buffer, size);
+}
+
+extern ULONG atox(const char* p) {
+  ULONG val = 0;
+
+  if (p[0] == '$') p++;
+  /* 0x... なら頭の 0x を取り除く */
+  else if (p[0] == '0' && p[1] == 'x' && p[2])
+    p += 2;
+
+  while (isxdigit(*p)) {
+    char c = *p++;
+    val <<= 4;
+    val += isdigit(c) ? (c - '0') : (tolower(c) - 'a' + 10);
+  }
+  return val;
+}
 
 /*
 
   safe malloc
 
 */
-extern void*
-Malloc (ULONG byte)
-{
-    void* rc;
+extern void* Malloc(size_t size) {
+  void* p = malloc((size == 0) ? 1 : size);
 
-    if (byte == 0)
-	byte = 1;
-    if ((rc = malloc (byte)) == NULL)
-	err ("ヒープメモリが不足しています.\n");
-
-    return rc;
+  if (p == NULL) notEnoughMemory();
+  return p;
 }
-
-
-#ifndef Mfree
-/*
-
-  safe mfree
-
-  free() は NULL を渡した場合は何もせずに正常終了するので、通常は
-  #define Mfree(ptr) free(ptr)
-  としておきます.  
-
-*/
-extern void
-Mfree (void* ptr)
-{
-    if (ptr)
-	free (ptr);
-}
-#endif
-
 
 /*
 
   safe realloc
 
 */
-extern void*
-Realloc (void* ptr, int size)
-{
-    void* rc;
-    
-    if ((rc = realloc (ptr, size)) == NULL)
-	err ("ヒープメモリが不足しています.\n");
-    return rc;
+extern void* Realloc(void* ptr, size_t size) {
+  void* rc = realloc(ptr, size);
+
+  if (rc == NULL) notEnoughMemory();
+  return rc;
 }
 
+// 内部エラーを表示してエラー終了する
+void internalError(const char* file, int line, const char* s) {
+  err("内部エラー: %s:%d: %s\n", file, line, s);
+}
 
-#ifndef	__LIBC__
-extern int
-eprintf (const char* fmt, ...)
-{
-    int cnt;
-    va_list ap;
+// メモリ不足によるエラー終了
+void notEnoughMemory(void) { err("\nヒープメモリが不足しています。\n"); }
 
-    va_start (ap, fmt);
-    cnt = vfprintf (stderr, fmt, ap);
-    va_end (ap);
-    return cnt;
+// フォーマット文字列を表示してエラー終了する
+void err(const char* fmt, ...) {
+  va_list ap;
+
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  va_end(ap);
+
+  errorExit();
+}
+
+// エラー終了する
+void errorExit(void) { exit(EXIT_FAILURE); }
+
+#ifndef __LIBC__
+extern int eprintf(const char* fmt, ...) {
+  int cnt;
+  va_list ap;
+
+  va_start(ap, fmt);
+  cnt = vfprintf(stderr, fmt, ap);
+  va_end(ap);
+  return cnt;
 }
 #endif
 
 /* #define eputc (c) fputc (c, stderr) */
-extern int
-eputc (int c)
-{
-    return fputc (c, stderr);
+extern int eputc(int c) { return fputc(c, stderr); }
+
+// 指定したメモリ内の小文字を大文字化する
+void toUpperMemory(size_t len, void* ptr) {
+  char* p = ptr;
+  char* end = p + len;
+
+  while (p < end) {
+    int c = toupper(*p);
+    *p++ = c;
+  }
 }
-
-
-#ifndef	__GNUC__
-extern ULONG
-min (ULONG a, ULONG b)
-{
-    return a < b ? a : b;
-}
-
-extern ULONG
-max (ULONG a, ULONG b);
-{
-    return a > b ? a : b;
-}
-#endif
-
-
-#ifndef HAVE_STRUPR
-extern char*
-strupr (char* str)
-{
-    unsigned char* p;
-
-    for (p = (unsigned char*) str; *p; p++) {
-	if (islower (*p))
-	    *p = toupper (*p);
-    }
-    return str;
-}
-#endif
-
 
 /* EOF */

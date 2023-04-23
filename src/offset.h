@@ -1,28 +1,24 @@
-/* $Id: offset.h,v 1.1 1996/10/24 04:27:48 ryo freeze $
- *
- *	ソースコードジェネレータ
- *	再配置テーブル管理ヘッダ
- *	Copyright (C) 1989,1990 K.Abe
- *	All rights reserved.
- *	Copyright (C) 1997-2010 Tachibana
- *
- */
+// ソースコードジェネレータ
+// 再配置テーブル管理 ヘッダ
+// Copyright (C) 1989,1990 K.Abe
+// All rights reserved.
+// Copyright (C) 1997-2023 TcbnErik
 
-#ifndef	OFFSET_H
-#define	OFFSET_H
+#ifndef OFFSET_H
+#define OFFSET_H
 
+#include "estruct.h"
+#include "global.h"
 
-extern void	make_relocate_table (void);
-extern void	free_relocate_buffer (void);
-extern boolean	depend_address (address);
-extern address	nearadrs (address);
+extern void makeRelocateTableHuman(void);
+extern boolean depend_address(address);
+extern address nearadrs(address);
 
-#define INPROG(opval, eaadrs) \
-    (depend_address (eaadrs) || \
-    (Absolute == ABSOLUTE_ZFILE && Head.base - 0x100 <= opval) || \
-    (Absolute == ABSOLUTE_ZOPT && Head.base <= opval && opval <= Last))
+#define INPROG(opval, eaadrs)                                   \
+  (depend_address(eaadrs) ||                                    \
+   (Dis.fileType == FILETYPE_Z && Dis.base - 0x100 <= opval) || \
+   (Dis.fileType == FILETYPE_DUMP && Dis.base <= opval && opval <= Dis.LAST))
 
+#endif
 
-#endif	/* OFFSET_H */
-
-/* EOF */
+// EOF

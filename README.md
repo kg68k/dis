@@ -24,7 +24,7 @@ UTF-8のままでは正しくビルドできませんので注意してくださ
 
 
 ## License
-GNU General Public License version 2 or later.
+GNU General Public License version 3 or later.
 
 
 ## Author

@@ -1,57 +1,44 @@
-/* $Id: generate.h,v 1.1 1996/10/24 04:27:44 ryo freeze $
- *
- *	ソースコードジェネレータ
- *	ソースコードジェネレートモジュールヘッダ
- *	Copyright (C) 1989,1990 K.Abe
- *	All rights reserved.
- *	Copyright (C) 1997-2010 Tachibana
- *
- */
+// ソースコードジェネレータ
+// ソースコードジェネレートモジュール ヘッダ
+// Copyright (C) 1989,1990 K.Abe
+// All rights reserved.
+// Copyright (C) 1997-2023 TcbnErik
 
-#ifndef	GENERATE_H
-#define	GENERATE_H
+#ifndef GENERATE_H
+#define GENERATE_H
 
+#include <time.h>  // time_t
 
-#include <time.h>	/* typedef time_t */
-#include "estruct.h"	/* typedef LONG, ULONG */
+#include "disasm.h"
+#include "estruct.h"
+#include "label.h"
+#include "output.h"
 
-typedef enum {
-    SIZE_NORMAL,
-    SIZE_OMIT,
-    SIZE_NOT_OMIT
-} size_mode;
+typedef struct {
+  opesize size;
+  int length;
+} SizeLength;
 
-extern	void	generate (char*, char*, time_t, int, char*[]);
-extern	void	disasmlist (char*, char*, time_t);
-extern	void	byteout_for_xoption (address, ULONG, char*);
-extern	void	modify_operand (disasm*);
-extern	char*	make_symbol (char*, address, LONG);
-extern	void	make_proper_symbol (char*, address);
+extern char* make_proper_symbol(char*, address);
+extern void com(const char* fmt, ...) GCC_PRINTF(1, 2);
+extern void comBlank(void);
+extern void outputHeaderCpu(void);
+extern void generate(char* xfilename, char* sfilename, time_t filedate,
+                     const char* argv0, char* cmdline);
+extern lblbuf* generateSection(char* sfilename, char* section, address end,
+                               lblbuf* lptr, int type, int* currentType);
+extern void disasmlist(char*);
+extern SizeLength getSizeBytes(opesize size);
+extern SizeLength getSizeLength(SizeLength sb, int bytes);
+extern void dataoutDc(address pc, codeptr store, opesize size, ULONG bytes,
+                      ULONG bytesPerUnit);
+extern void dataoutDcByte(address pc, address pcend);
+extern void label_line_out(address adrs, lblmode mode, int sectType,
+                           boolean last, LineType lineType);
+extern const char* ctimez(time_t* clock);
+extern void otherDirective(const char* s);
+extern void otherDirective2(const char* s1, const char* s2);
 
-extern	int		Data_width;
-extern	int		String_width;
-extern	int		Compress_len;
-extern	int		Adrsline;
-extern	int		Xtab, Atab;
-extern	int		SymbolColonNum;
-extern	char		Label_first_char;
-extern	short		sp_a7_flag;
-extern	short		Old_syntax;
-extern	size_mode	Generate_SizeMode;
+#endif
 
-extern	char		opsize[];
-
-#ifdef	OSKDIS
-extern	char*		OS9label [0x100];
-extern	char*		MATHlabel[0x100];
-extern	char*		CIOlabel [0x100];
-#else
-extern	char**		IOCSlabel;
-extern	char		IOCSCallName[16];
-extern	const char*	Header_filename;
-#endif	/* OSKDIS */
-
-
-#endif	/* GENERATE_H */
-
-/* EOF */
+// EOF

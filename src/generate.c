@@ -1,808 +1,490 @@
-/* $Id: generate.c,v 1.1 1996/11/07 08:03:36 ryo freeze $
- *
- *	ソースコードジェネレータ
- *	ソースコードジェネレートモジュール
- *	Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
- *	All rights reserved.
- *	Copyright (C) 1997-2010 Tachibana
- *
- */
+// ソースコードジェネレータ
+// ソースコードジェネレートモジュール
+// Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
+// All rights reserved.
+// Copyright (C) 1997-2023 TcbnErik
 
-#include <time.h>		/* time ctime */
-#include <ctype.h>		/* isprint */
+#include "generate.h"
+
+#include <ctype.h>  // isprint
+#include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>		/* getenv */
+#include <stdlib.h>  // getenv
 #include <string.h>
-#include <unistd.h>
+#include <time.h>  // time ctime
 
 #include "disasm.h"
+#include "eastr.h"  // write_size
 #include "estruct.h"
-#include "etc.h"	/* charout, strupr, <jctype.h> */
+#include "etc.h"  // charout, <jctype.h>
+#include "eval.h"
 #include "fpconv.h"
-#include "generate.h"
 #include "global.h"
 #include "hex.h"
-#include "include.h"	/* Doscall_mac_path , etc. */
-#include "label.h"	/* search_label etc. */
-#include "offset.h"	/* depend_address, nearadrs */
+#include "include.h"
+#include "label.h"  // search_label etc.
+#include "mmu.h"
+#include "offset.h"  // depend_address, nearadrs
+#include "opstr.h"
+#include "osk.h"
 #include "output.h"
-#include "symbol.h"	/* symbol_search */
+#include "symbol.h"  // symbol_search
 #include "table.h"
-
-#if defined (__LIBC__)
-  #include <sys/xstart.h>	/* char* _comline */
-  #define COMMAND_LINE _comline
-#else
-  private char*		make_cmdline (char** argv);
-  #define COMMAND_LINE  make_cmdline (argv + 1)
-  #define NEED_MAKE_CMDLINE
-#endif
-
 
 /* Macros */
 #define MIN_BIT(x) ((x) & -(x))
 
-#ifdef	DEBUG
-#define	DEBUG_PRINT(arg) eprintf arg
-#else
-#define	DEBUG_PRINT(arg)
-#endif
+typedef struct {
+  address adrs;
+  LONG shift;
+} AdrsShift;
 
+// static 関数プロトタイプ
+static address textgen(address, address);
+static void byteout_for_xoption(address, ULONG, char*);
+static void byteout_for_moption(disasm* code, char* buffer);
+static char* operandToLabel(char* p, operand* op);
+static void syntax_new_to_old(operand* op);
 
-USEOPTION option_q, option_r, option_x,
-	  option_B, option_M, option_N, /* option_Q, */
-	  option_S, option_U;
+static void dataout(address, ULONG, opesize);
+static address datagen(address, address, opesize);
+static void datagen_sub(address, address, opesize);
+static void strgen(address, address);
+static void relgen(address, address, opesize);
+static void zgen(address, address);
+static address tablegen(address pc, int sectType);
+static void tablegen_label(address pc, address pcend, lblbuf* lptr,
+                           int sectType);
+static void bssgen(address, address, opesize);
+static char* mputype_numstr(mputypes m);
 
+static mputypes Current_Mputype;
 
-/* main.c */
-extern	char	CommentChar;
+// ラベルorシンボル名(±オフセット)形式のラベル式をバッファに書き込む
+//   文字列末尾のアドレスを返す
+char* make_proper_symbol(char* buf, address adrs) {
+  SymbolLabelFormula slfml;
 
-
-/* static 関数プロトタイプ */
-private lblbuf*		gen (char* section, address end, lblbuf* lptr, int type);
-#ifndef OSKDIS
-private lblbuf*		gen2(char* section, address end, lblbuf* lptr, int type);
-#endif
-private void		output_file_open_next (int sect);
-private address		textgen (address, address);
-private void		labelchange (disasm* code, operand* op);
-private void		a7toSP (operand*);
-private void		syntax_new_to_old (operand* op);
-private address		datagen (address, address, opesize);
-private void		datagen_sub (address, address, opesize);
-
-private void		dataout (address, ULONG, opesize);
-private void		byteout (address, ULONG, boolean);
-private void		wordout (address, ULONG);
-private void		longout (address, ULONG);
-private void		quadout (address pc, ULONG byte);
-private void		floatout (address pc, ULONG byte);
-private void		doubleout (address pc, ULONG byte);
-private void		extendout (address pc, ULONG byte);
-private void		packedout (address pc, ULONG byte);
-
-private void		strgen (address, address);
-private void		relgen (address, address);
-private void		rellonggen (address, address);
-private void		byteout_for_moption (address, char*, int);
-private void		zgen (address, address);
-private address		tablegen (address, address, lblmode);
-private address		tablegen_sub (formula*, address, address, int);
-private void		tablegen_label (address, address, lblbuf*);
-private void		tablegen_dc (address, lblbuf*, char*, int);
-private void		bssgen (address, address, opesize);
-private void		label_line_out (address adrs, lblmode mode);
-private void		label_line_out_last (address adrs, lblmode mode);
-private void		label_op_out (address);
-private void		output_opecode (char*);
-private char*		mputype_numstr (mputypes m);
-private void		makeheader (char*, time_t, char*, char*);
-
-#ifdef	OSKDIS
-private void		oskdis_gen (void);
-private lblbuf*		idatagen (address end, lblbuf* lptr);
-private void		vlabelout (address, lblmode);
-private void		wgen (address pc, address pcend);
-#endif	/* OSKDIS */
-
-
-int	SymbolColonNum = 2;
-short	sp_a7_flag;		/* a7 を sp と出力するか? */
-short	Old_syntax;
-
-int Xtab = 7;			/* /x option TAB level */
-int Atab = 8;			/* /a option TAB level */
-int Mtab = 5;			/* /M option TAB level */
-
-int Data_width = 8;		/* データ領域の横バイト数 */
-int String_width = 60;		/* 文字列領域の横バイト数 */
-int Compress_len = 64;		/* データ出力をdcb.?にする最小バイト数 */
-
-size_mode Generate_SizeMode = SIZE_NORMAL;
-
-char	Label_first_char = 'L';	/* ラベルの先頭文字 */
-
-char	opsize[] = "bwlqssdxp";
-
-static mputypes	Current_Mputype;
-static UWORD	SectionType;
-
-
-#ifdef	OSKDIS
-char*	OS9label [0x100];	/* os9	 F$???(I$???)	*/
-char*	MATHlabel[0x100];	/* tcall T$Math,T$???	*/
-char*	CIOlabel [0x100];	/* tcall CIO$Trap,C$??? */
-#else
-char**	IOCSlabel;
-char	IOCSCallName[16] = "IOCS";
-const char*	Header_filename;
-#endif	/* OSKDIS */
-
-
-/* 擬似命令 */
-
-#ifdef	OSKDIS
-#define PSEUDO	"\t"
-#define EVEN	"align"
-#else
-#define PSEUDO	"\t."
-#define EVEN	"even"
-#define DCB_B	"dcb.b\t"
-#define DCB_W	"dcb.w\t"
-#define DCB_L	"dcb.l\t"
-#define DCB_Q	"dcb.d\t"
-#define DCB_S	"dcb.s\t"
-#define DCB_D	"dcb.d\t"
-#define DCB_X	"dcb.x\t"
-#define DCB_P	"dcb.p\t"
-#endif	/* !OSKDIS */
-
-#define INCLUDE	"include\t"
-#define CPU	"cpu\t"
-#define FPID	"fpid\t"
-#define EQU	"equ\t"
-#define XDEF	"xdef\t"
-
-#define DC_B	"dc.b\t"
-#define DC_W	"dc.w\t"
-#define DC_L	"dc.l\t"
-#define DC_Q	"dc.d\t"
-#define DC_S	"dc.s\t"
-#define DC_D	"dc.d\t"
-#define DC_X	"dc.x\t"
-#define DC_P	"dc.p\t"
-
-#define DS_B	"ds.b\t"
-#define DS_W	"ds.w\t"
-#define DS_L	"ds.l\t"
-
-#define DEFAULT_FPID	1
-
-
-/* Inline Functions */
-
-static INLINE char*
-strcpy2 (char* dst, char* src)
-{
-    while ((*dst++ = *src++) != 0)
-	;
-    return --dst;
+  makeSymLabFormula(&slfml, adrs);
+  return catSlfml(buf, &slfml);
 }
 
+// コメント行を書き出す
+void com(const char* fmt, ...) {
+  char buf[512];
+  va_list ap;
 
-/*
+  va_start(ap, fmt);
+  vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
 
-  Check displacement of Relative branch
-
-  return FALSE;      short    で済む displacement が word の場合
-	もしくは、short||word で済む displacement が long の場合
-  return TRUE; サイズが省略可能な場合.
-
-  as.xのバグへの対応は削除(1997/10/10).
-  jmp,jsrはcode.size==NOTHINGである為、無関係(呼び出しても無害).
-
-*/
-
-static INLINE boolean
-check_displacement (address pc, disasm* code)
-{
-    long dist = (ULONG)code->jmp - (ULONG)pc;
-    unsigned char c = code->opecode[0];
-
-    /* bra, bsr, bcc */
-    if (c == 'b') {
-	if (code->size == WORDSIZE)
-	    return ((dist <= 127) && (-dist <= 128 + 2)) ? FALSE : TRUE;
-	if (code->size == LONGSIZE)
-	    return ((dist <= 32767) && (-dist <= 32768 + 2)) ? FALSE : TRUE;
-	return TRUE;
-    }
-
-    /* dbcc, fdbcc, pdbcc : always 16bit displacement */
-    if ((c == 'd') || (code->opecode[1] == (char)'d')) {
-	return TRUE;
-    }
-
-    /* fbcc, pbcc : 16bit or 32bit displacement */
-    {
-	if (code->size == LONGSIZE)
-	    return ((dist <= 32767) && (-dist <= 32768 + 2)) ? FALSE : TRUE;
-	return TRUE;
-    }
-
-    /* NOT REACHED */
+  otherDirective2(Dis.commentStr, buf);
 }
 
+// コメント記号だけの行を書き出す
+//   com("") で warning: zero-length format string になるのを回避。
+void comBlank(void) { otherDirective(Dis.commentStr); }
+
+// .cpu疑似命令を書き出す
+void outputHeaderCpu(void) {
+  otherDirective2(OpString.cpu, mputype_numstr(Current_Mputype));
+}
+
+static FILE* open_header_file(void) {
+  FILE* fp;
+  const char* fname = Dis.headerFile;
+
+  if (fname == NULL || fname[0] == '\0') {
+    if (!Dis.deterministic) fname = getenv(ENV_dis_header);
+  }
+  if (fname == NULL || fname[0] == '\0') {
+    return NULL;
+  }
+
+  fp = fopen(fname, "rt");
+  if (fp == NULL) {
+    err("\nヘッダ記述ファイルをオープンできません: %s\n", fname);
+  }
+
+  return fp;
+}
 
 /*
 
   アセンブリソースを出力する
 
   input:
-    xfilename	: execute file name
-    sfilename	: output file name
-    filedate	: execute file' time stamp
-    argc	: same to argc given to main()	// 現在未使用
-    argv	: same to argv given to main()
+    xfilename : execute file name
+    sfilename : output file name
+    filedate  : execute file' time stamp
+    argc : same to argc given to main()  // 現在未使用
+    argv : same to argv given to main()
 
 */
-extern void
-generate (char* xfilename, char* sfilename,
-		time_t filedate, int argc, char* argv[])
-{
+extern void generate(char* xfilename, char* sfilename, time_t filedate,
+                     const char* argv0, char* cmdline) {
+  // ヘッダファイルが存在しない場合に空の出力ファイルが残らないよう、先に開く
+  FILE* fpHeader = open_header_file();
 
-    /* ニーモニックは必要 */
-    Disasm_String = TRUE;
-    Current_Mputype = MIN_BIT (MPU_types);
+  Current_Mputype = MIN_BIT(Dis.mpu);
+  Dis.needString = TRUE;
+  openOutputFile(sfilename, Dis.outputSplitByte, NULL);
 
-    if (option_x)
-	Atab += 2;
+  Dis.actions->outputHeader(xfilename, filedate, argv0, cmdline, fpHeader);
+  if (fpHeader) fclose(fpHeader);
+  Dis.actions->generate(sfilename);
 
-    init_output ();
-    output_file_open (sfilename, 0);
-
-#ifdef __LIBC__
-    /* 標準出力に書き込む場合、標準エラー出力と出力先が同じ場合は */
-    /* ソースコード出力中の表示を抑制する */
-    if (is_confuse_output ()) {
-	eputc ('\n');
-	option_q = TRUE;
-    }
-#endif
-
-    makeheader (xfilename, filedate, argv[0], COMMAND_LINE);
-
-#ifdef	OSKDIS
-    oskdis_gen ();
-#else
-    {
-	lblbuf* lptr = next (BeginTEXT);
-
-	lptr = gen  ("\t.text"	CR CR, BeginDATA,  lptr, XDEF_TEXT);
-	lptr = gen  ("\t.data"	CR CR, BeginBSS,   lptr, XDEF_DATA);
-	lptr = gen2 ("\t.bss"	CR CR, BeginSTACK, lptr, XDEF_BSS);
-	lptr = gen2 ("\t.stack" CR CR, Last,	   lptr, XDEF_STACK);
-
-	/* 末尾にある属性 0 のシンボルを出力する */
-	SectionType = (UWORD)0;
-	label_line_out_last (lptr->label, lptr->mode);
-
-	output_opecode (CR "\t.end\t");
-	label_op_out (Head.exec);
-    }
-#endif	/* !OSKDIS */
-
-    newline (Last);
-    output_file_close ();
+  closeOutputFile(TRUE);
 }
 
+// セクション疑似命令を出力する
+static void outputSection(char* section) {
+  if (section == NULL) return;
 
-/*
+  otherDirective(section);
+  outputBlank();
+}
 
-  １セクションを出力する
+// 必要なら出力ファイルを切り換える
+static void switchFile(char* sfilename, int type, int* currentType) {
+  if (Dis.outputSplitByte == 0) return;
+  if (type == XDEF_TEXT) return;
 
-  input:
-    section : section name ; ".text" or ".data"
-    end     : block end address
-    lptr    : lblbuf* ( contains block start address )
+  // .bss -> .stackは切り換えずに同じファイル(".bss")に出力する
+  if (type == XDEF_STACK && *currentType == XDEF_BSS) return;
 
-*/
-private lblbuf*
-gen (char* section, address end, lblbuf* lptr, int type)
-{
-    address  pc = lptr->label;
-    lblmode  nmode = lptr->mode;
+  closeOutputFile(FALSE);
+  openOutputFile(sfilename, Dis.outputSplitByte,
+                 (type == XDEF_DATA) ? ".dat" : ".bss");
+  *currentType = type;
+}
 
-    /* 0 バイトのセクションで、かつシンボルが存在しなければ */
-    /* セクション疑似命令も出力しない.			    */
-    if (pc == end && !symbol_search2 (pc, type))
-	return lptr;
+// 空のセクションかどうかを返す
+//   サイズが0バイト、シンボルが存在しなければ空。
+static boolean isEmptySection(address start, address end, int type) {
+  if (start != end) return FALSE;
+  if (symbol_search2(start, type) != NULL) return FALSE;
 
-    /* 必要なら出力ファイルを *.dat に切り換える */
-    output_file_open_next (type);
+  return TRUE;
+}
 
-    outputa (CR);
-    output_opecode (section);
-    SectionType = (UWORD)type;
+// 1セクションを出力する
+// 引数:
+//   section: セクション疑似命令("\t.text"～"\t.stack")、OSKDISの場合はNULL
+//   end    : 終了アドレス
+//   lptr   : 開始アドレス
+//   type   : セクション番号(XDEF_TEXT～XDEF_STASCK)
+lblbuf* generateSection(char* sfilename, char* section, address end,
+                        lblbuf* lptr, int type, int* currentType) {
+  lblbuf* nextLabel;
+  uint8_t isBSS;
 
-    while (pc < end) {
-	lblmode  mode = nmode;
-	address  nlabel;
+  // 空のセクションなら、セクション疑似命令も出力しない
+  if (isEmptySection(lptr->label, end, type)) return lptr;
 
-	do {
-	    lptr = Next (lptr);
-	} while (lptr->shift);
-	nlabel = lptr->label;
-	nmode  = lptr->mode;
+  outputBlank();
+  switchFile(sfilename, type, currentType);
+  outputSection(section);
 
-	label_line_out (pc, mode);
+  isBSS = (type >= XDEF_BSS);
+  while (lptr->label < end) {
+    address pc = lptr->label;
+    lblmode mode = lptr->mode;
 
-	if (isPROLABEL (mode)) {
-	    textgen (pc, nlabel);
-	    pc = nlabel;
-	} else if (isTABLE (mode)) {
-	    pc = tablegen (pc, nlabel, mode);
-	    lptr = next (pc);
-	    nmode = lptr->mode;
-	} else {
-	    datagen (pc, nlabel, mode & 0xff);
-	    pc = nlabel;
-	}
+    nextLabel = lptr;
+    do {
+      nextLabel = Next(nextLabel);
+    } while (nextLabel->shift);  // 命令の中を指すラベルを飛ばす
+
+    label_line_out(pc, mode, type, FALSE,
+                   isPROLABEL(mode) ? LINETYPE_TEXT : LINETYPE_DATA);
+
+    if (isPROLABEL(mode)) {
+      textgen(pc, nextLabel->label);
+    } else if (isTABLE(mode)) {
+      pc = tablegen(pc, type);
+      if (pc != nextLabel->label)
+        internalError(__FILE__, __LINE__, "pc != nextLabel->label.");
+    } else if (isBSS) {
+      bssgen(pc, nextLabel->label, lblmodeOpesize(mode));
+    } else {
+      datagen(pc, nextLabel->label, lblmodeOpesize(mode));
     }
 
-    /* セクション末尾のラベル(外部定義シンボルのみ) */
-    label_line_out_last (pc, nmode);
+    lptr = nextLabel;
+  }
 
-    return lptr;
+  // セクション末尾のラベル(外部定義シンボルのみ)
+  label_line_out(lptr->label, lptr->mode, type, TRUE, LINETYPE_OTHER);
+
+  return lptr;
 }
 
-#ifndef	OSKDIS
-/*
+// 直後に空行を出力する命令か調べる
+//   applyToBra: DisVars::B (-B オプションの値)
+static boolean isBlankLineNeeded(disasm* code, uint8_t applyToBra) {
+  switch (code->opeType) {
+    default:
+      break;
 
-    .bss/.stack を出力する
+    case JMPOP:
+      if (applyToBra) return TRUE;
+      if ((code->codeflags & CODEFLAG_BRAOP) == 0) return TRUE;
+      break;
 
-*/
-private lblbuf*
-gen2 (char* section, address end, lblbuf* lptr, int type)
-{
-    address  pc = lptr->label;
-    lblmode  nmode = lptr->mode;
+    case RTSOP:
+      return TRUE;
+  }
 
-    /* 0 バイトのセクションで、かつシンボルが存在しなければ */
-    /* セクション疑似命令も出力しない.			    */
-    if (pc == end && !symbol_search2 (pc, type))
-	return lptr;
+  return FALSE;
+}
 
-    /* 必要なら出力ファイルを *.bss に切り換える */
-    output_file_open_next (type);
-
-    outputa (CR);
-    output_opecode (section);
-    SectionType = (UWORD)type;
-
-    while (pc < end) {
-	lblmode  mode = nmode;
-	address  nlabel;
-
-	lptr   = Next (lptr);
-	nlabel = lptr->label;
-	nmode  = lptr->mode;
-
-	label_line_out (pc, mode);
-
-	if (isTABLE (mode)) {
-	    pc = tablegen (pc, nlabel, mode);
-	    lptr = next (pc);
-	    nmode = lptr->mode;
-	} else {
-	    bssgen (pc, nlabel, mode & 0xff);
-	    pc = nlabel;
-	}
+// オペコードに付けるサイズを決定する
+static opesize decideOutputSize(disasm* code) {
+  if (code->opeType == OTHER) {
+    if (code->size == code->default_size && Dis.N) return NOTHING;
+  } else if (code->jmpea == PCDISP) {
+    switch (Dis.branchSize) {
+      default:
+        break;
+      case BRANCH_SIZE_AUTO:  // -b0 可能ならサイズ省略
+        // JMP, JSRはsize==NOTHINGなので考慮しなくてもNOTHINGが返される
+        if ((code->codeflags & CODEFLAG_NEED_OPESIZE) == 0) return NOTHING;
+        break;
+      case BRANCH_SIZE_OMIT:  // -b1 常にサイズ省略
+        return NOTHING;
+        break;
     }
+  }
 
-    /* セクション末尾のラベル(外部定義シンボルのみ) */
-    label_line_out_last (pc, nmode);
-
-    return lptr;
+  return code->size;
 }
 
+// オペランドをラベル化、旧表記化してバッファに書き込む
+static char* operandToOldSyntax(char* p, operand* op) {
+  char buf[sizeof(op->operand)];
 
-/*
-
-  必要なら出力ファイルを切り換える.
-
-*/
-private void
-output_file_open_next (int sect)
-{
-    static int now = 0;			/* 最初は .text */
-    int type;
-
-    if (!option_S || sect == XDEF_TEXT)
-	return;
-
-    /* .data は -1、.bss 及び .stack は -2 */
-    type = (sect >= XDEF_BSS) ? -2 : -1;
-
-    if (now != type) {
-	now = type;
-	output_file_close ();
-	output_file_open (NULL, now);
-    }
+  *operandToLabel(buf, op) = '\0';
+  strcpy(op->operand, buf);
+  syntax_new_to_old(op);
+  return strcpy2(p, op->operand);
 }
 
-#endif	/* !OSKDIS */
+// オペランドを結合してバッファに書き込む(旧表記)
+static char* buildOperandsOldSyntax(char* p, disasm* code) {
+  if (code->op1.operand[0] == '\0') return p;
+  *p++ = '\t';
+  p = operandToOldSyntax(p, &code->op1);
 
+  if (code->op2.operand[0] == '\0') return p;
+  if ((code->op2.flags & OPFLAG_COMBINE) == 0) *p++ = ',';
+  p = operandToOldSyntax(p, &code->op2);
 
-/*
-  -M、-x オプションのタブ出力
-  input:
-    tabnum : Mtab or Xtab
-    buffer : pointer to output buffer
-  return:
-    pointer to end of output buffer
-*/
+  if (code->op3.operand[0] == '\0') return p;
+  if ((code->op3.flags & OPFLAG_COMBINE) == 0) *p++ = ',';
+  p = operandToOldSyntax(p, &code->op3);
 
-static INLINE char*
-tab_out (int tab, char* buf)
-{
-    int len;
-    unsigned char c;
-
-    /* 行末までの長さを数える */
-    for (len = 0; (c = *buf++) != '\0'; len++)
-	if (c == '\t')
-	    len |= 7;
-    buf--;
-    len /= 8;			/* 現在のタブ位置 */
-
-    /* 最低一個のタブを出力する分、ループ回数を 1 減らす */
-    tab--;
-
-    /* now, buffer points buffer tail */
-    for (tab -= len; tab > 0; tab--)
-	*buf++ = '\t';
-
-    *buf++ = '\t';
-    *buf++ = CommentChar;
-    return buf;
+  if (code->op4.operand[0] == '\0') return p;
+  if ((code->op4.flags & OPFLAG_COMBINE) == 0) *p++ = ',';
+  return operandToOldSyntax(p, &code->op3);
 }
 
+// オペランドを結合してバッファに書き込む
+static char* buildOperands(char* p, disasm* code) {
+  if (code->op1.operand[0] == '\0') return p;
+  *p++ = '\t';
+  p = operandToLabel(p, &code->op1);
+
+  if (code->op2.operand[0] == '\0') return p;
+  if ((code->op2.flags & OPFLAG_COMBINE) == 0) *p++ = ',';
+  p = operandToLabel(p, &code->op2);
+
+  if (code->op3.operand[0] == '\0') return p;
+  if ((code->op3.flags & OPFLAG_COMBINE) == 0) *p++ = ',';
+  p = operandToLabel(p, &code->op3);
+
+  if (code->op4.operand[0] == '\0') return p;
+  if ((code->op4.flags & OPFLAG_COMBINE) == 0) *p++ = ',';
+  return operandToLabel(p, &code->op4);
+}
+
+// オペコードとオペランドを結合して出力する
+void outputOpcodeAndOperands(disasm* code, const char* header, char* buffer) {
+  char* p = buffer;
+
+  *p++ = '\t';
+  p = strcpy2(p, GET_OPECODE(code));
+  p = write_size(p, decideOutputSize(code));
+
+  p = Dis.oldSyntax ? buildOperandsOldSyntax(p, code) : buildOperands(p, code);
+  *p = '\0';
+
+  if (code->opeType == UNDEF) {
+    char* u = writeTabAndCommentChar(buffer, Dis.UndefTab);  // Dis.Mtab
+    strcpy(u, "undefined inst.");
+  } else if ((code->codeflags & CODEFLAG_NEED_COMMENT) && Dis.M) {
+    byteout_for_moption(code, buffer);
+  }
+
+  if (Dis.x) byteout_for_xoption(code->pc, code->bytes, buffer);
+
+  if (header) {
+    outputText2(code->pc, header, buffer);
+  } else {
+    // -vでない通常モードの処理をすこしでも速くする
+    outputText(code->pc, buffer);
+  }
+
+  // rts、jmp、bra の直後に空行を出力する
+  // ただし、-B オプションが無指定なら bra は除く
+  if (isBlankLineNeeded(code, Dis.B)) outputBlank();
+}
 
 /*
 
   テキストブロックを出力する
 
   input :
-    pc : text begin address
+    from : text begin address
     pcend : text end address
 
   return :
     pcend
 
 */
-private address
-textgen (address pc, address pcend)
-{
-    short   made_to_order = (!sp_a7_flag || Old_syntax || option_U);
-    address store = pc + Ofst;
+static address textgen(address from, address pcend) {
+  DisParam disp;
+  disasm* code = &disp.code;
+  char buffer[128 + sizeof(disp.code.op1.operand) * 4];
 
-    charout ('.');
-    PCEND = pcend;
+  charout('.');
 
-    while (pc < pcend) {
-	static char prev_fpuid = DEFAULT_FPID;
-	disasm code;
-	opesize size;
-	address store0 = store;
-	address pc0 = pc;
-	char  buffer[128];
-	char* ptr;
-	char* l;			/* IOCS コール名 */
+  setDisParamPcPtr(&disp, from, Dis.Ofst);
+  disp.pcEnd = pcend;
 
-	store += dis (store, &code, &pc);
+  while (disp.pc < pcend) {
+    static int8_t prev_fpuid = CPID_FPU;
 
-	/* .cpu 切り換え */
-	if ((code.mputypes & Current_Mputype) == 0) {
-	    Current_Mputype = MIN_BIT (code.mputypes & MPU_types);
-	    output_opecode (PSEUDO CPU);
-	    outputa (mputype_numstr (Current_Mputype));
-	    newline (pc0);
-	}
+    dis(&disp);
 
-	/* .fpid 切り換え */
-	if ((code.fpuid >= 0) && (code.fpuid != prev_fpuid)) {
-	    prev_fpuid = code.fpuid;
-	    output_opecode (PSEUDO FPID);
-	    outputfa ("%d", (int)code.fpuid);
-	    newline (pc0);
-	}
-
-	/* code.size はサイズ省略時に NOTHING に書き換えられるので */
-	/* 即値のコメント出力用に、本当のサイズを保存しておく	   */
-	size = code.size;
-
-	if (code.flag == OTHER) {
-	    if (size == code.default_size && option_N)
-		code.size = NOTHING;
-	}
-	else if (code.jmpea == PCDISP) {
-	    if ((Generate_SizeMode == SIZE_NORMAL && size != NOTHING
-		    && check_displacement (pc, &code))	/* -b0: 可能ならサイズ省略 */
-		|| Generate_SizeMode == SIZE_OMIT)	/* -b1: 常にサイズ省略 */
-		code.size = NOTHING;
-	}
-
-	if (made_to_order)
-	    modify_operand (&code);
-	else {				/* "sp"、小文字、新表記なら特別扱い */
-	    if (code.op1.operand[0]) {
-		a7toSP (&code.op1);
-		labelchange (&code, &code.op1);
-
-		if (code.op2.operand[0]) {
-		    a7toSP (&code.op2);
-		    labelchange (&code, &code.op2);
-
-		    if (code.op3.operand[0]) {
-			a7toSP (&code.op3);
-			labelchange (&code, &code.op3);
-
-			if (code.op4.operand[0]) {
-			    a7toSP (&code.op4);
-			    labelchange (&code, &code.op4);
-			}
-		    }
-		}
-	    }
-	}
-
-	ptr = buffer;
-	*ptr++ = '\t';
-
-#ifdef	OSKDIS
-#define OS9CALL(n, v, t)  (peekw (store0) == (n) && (v) < 0x100 && (l = (t)[(v)]))
-	if (OS9CALL (0x4e40, code.op1.opval, OS9label))		/* trap #0 (OS9) */
-	    strcat (strcpy (ptr, "OS9\t"), l);
-	else if (OS9CALL (0x4e4d, code.op2.opval, CIOlabel))	/* trap #13 (CIO$Trap) */
-	    strcat (strcpy (ptr, "TCALL\tCIO$Trap,"), l);
-	else if (OS9CALL (0x4e4f, code.op2.opval, MATHlabel))	/* trap #15 (T$Math) */
-	    strcat (strcpy (ptr, "TCALL\tT$Math,"), l);
-#else
-	if (*(UBYTE*)store0 == 0x70		/* moveq #imm,d0 + trap #15 なら */
-	 && peekw (store) == 0x4e4f		/* IOCS コールにする		 */
-	 && IOCSlabel && (l = IOCSlabel[*(UBYTE*)(store0 + 1)]) != NULL
-	 && (pc < pcend)) {
-	    ptr = strcpy2 (ptr, IOCSCallName);
-	    *ptr++ = '\t';
-	    strcpy2 (ptr, l);
-	    store += 2;
-	    pc += 2;
-	    code.opflags &= ~FLAG_NEED_COMMENT;	/* moveq のコメントは付けない */
-	}
-#endif	/* OSKDIS */
-	else {
-	    ptr = strcpy2 (ptr, code.opecode);
-	    if (code.size < NOTHING) {
-		*ptr++ = '.';
-		*ptr++ = opsize[code.size];
-	    }
-
-	    if (code.op1.operand[0]) {
-		*ptr++ = '\t';
-		ptr = strcpy2 (ptr, code.op1.operand);
-
-		if (code.op2.operand[0]) {
-		    if (code.op2.ea != BitField && code.op2.ea != KFactor)
-			*ptr++ = ',';
-		    ptr = strcpy2 (ptr, code.op2.operand);
-
-		    if (code.op3.operand[0]) {
-			if (code.op3.ea != BitField && code.op3.ea != KFactor)
-			    *ptr++ = ',';
-			ptr = strcpy2 (ptr, code.op3.operand);
-
-			if (code.op4.operand[0]) {
-			    if (code.op4.ea != BitField && code.op4.ea != KFactor)
-				*ptr++ = ',';
-			    strcpy2 (ptr, code.op4.operand);
-			}
-		    }
-		}
-	    }
-	}
-
-	if (code.flag == UNDEF) {	/* -M と同じ桁に出力 */
-	    strcpy (tab_out (Mtab, buffer), "undefined inst.");
-	}
-
-	else if ((code.opflags & FLAG_NEED_COMMENT) && option_M)
-	    byteout_for_moption (pc0, buffer, size);
-
-	if (option_x)
-	    byteout_for_xoption (pc0, pc - pc0, buffer);
-
-	outputa (buffer);
-	newline (pc0);
-
-	/* rts、jmp、bra の直後に空行を出力する		*/
-	/* ただし、-B オプションが無指定なら bra は除く	*/
-	if ((code.opflags & FLAG_NEED_NULSTR)
-	 && (option_B || (code.opecode[0] != 'b' && code.opecode[0] != 'B')))
-	    outputa (CR);
-
+    // .cpu 切り換え
+    if ((code->mputypes & Current_Mputype) == 0) {
+      Current_Mputype = MIN_BIT(code->mputypes & Dis.mpu);
+      outputDirective2(LINETYPE_TEXT, disp.pc, OpString.cpu,
+                       mputype_numstr(Current_Mputype));
     }
 
-    return pcend;
-}
-
-
-
-/*
-
-	出力形式の指定に従ってオペランドを修正する.
-
-	1)レジスタ名"a7"を"sp"にする("za7"も"zsp"にする).
-	2)オペコード及び各オペランドを大文字にする.
-	3)ラベルに変更できる数値はラベルにする.
-	4)アドレッシング表記を古い書式にする.
-
-*/
-
-extern void
-modify_operand (disasm *code)
-{
-    int upper_flag = (option_U && !(code->opflags & FLAG_CANNOT_UPPER));
-
-    if (upper_flag)
-	strupr (code->opecode);
-
-    if (code->op1.operand[0]) {
-	if (sp_a7_flag) a7toSP (&code->op1);
-	if (upper_flag) strupr (code->op1.operand);
-	labelchange (code, &code->op1);
-	if (Old_syntax) syntax_new_to_old (&code->op1);
-
-	if (code->op2.operand[0]) {
-	    if (sp_a7_flag) a7toSP (&code->op2);
-	    if (upper_flag) strupr (code->op2.operand);
-	    labelchange (code, &code->op2);
-	    if (Old_syntax) syntax_new_to_old (&code->op2);
-
-	    if (code->op3.operand[0]) {
-		if (sp_a7_flag) a7toSP (&code->op3);
-		if (upper_flag) strupr (code->op3.operand);
-		labelchange (code, &code->op3);
-		if (Old_syntax) syntax_new_to_old (&code->op3);
-
-		if (code->op4.operand[0]) {
-		    if (sp_a7_flag) a7toSP (&code->op4);
-		    if (upper_flag) strupr (code->op4.operand);
-		    labelchange (code, &code->op4);
-		    if (Old_syntax) syntax_new_to_old (&code->op4);
-		}
-	    }
-	}
+    // .fpid 切り換え
+    if ((code->fpuid >= 0) && (code->fpuid != prev_fpuid)) {
+      char buf[2] = {'0' + code->fpuid, '\0'};
+      prev_fpuid = code->fpuid;
+      outputDirective2(LINETYPE_TEXT, disp.pc, OpString.fpid, buf);
     }
+
+    outputOpcodeAndOperands(code, NULL, buffer);
+  }
+
+  return pcend;
 }
 
+// 単なる逆アセンブル出力(-vオプション指定時)
+extern void disasmlist(char* sfilename) {
+  DisParam disp;
+  address pcend = Dis.beginTEXT + Dis.text;
+  char buffer[128 + sizeof(disp.code.op1.operand) * 4];
 
-/*
+  Dis.needString = TRUE;
+  openOutputFile(sfilename, Dis.outputSplitByte, NULL);
 
-　a7 表記を sp 表記に変える
+  setDisParamPcPtr(&disp, Dis.beginTEXT, Dis.Ofst);
+  disp.pcEnd = pcend;
 
-*/
-private void
-a7toSP (operand* op)
-{
-    char *ptr = op->operand;
+  while (disp.pc < pcend) {
+    char adrs[12];
 
-    switch (op->ea) {
-    case AregD:
-	break;
-    case AregID:
-    case AregIDPI:
-	ptr++;
-	break;
-    case AregIDPD:
-	ptr += 2;
-	break;
-    case AregDISP:
-	ptr = strchr (ptr, ',') + 1;
-	break;
-    case AregIDX:
-	ptr = strrchr (ptr, ',') - 2;
-	if (ptr[1] == '7') {
-	    ptr[0] = 's';
-	    ptr[1] = 'p';
-	}
-	ptr += 3;
-	break;
-    case PCIDX:
-	ptr = strrchr (ptr, ',') + 1;
-	break;
+    itox6(adrs, (ULONG)disp.pc);
+    dis(&disp);
+    outputOpcodeAndOperands(&disp.code, adrs, buffer);
+  }
 
-    case RegPairID:
-	ptr++;
-	if (ptr[0] == 'a' && ptr[1] == '7') {
-	    ptr[0] = 's';
-	    ptr[1] = 'p';
-	}
-	ptr += 5;
-	break;
+  closeOutputFile(TRUE);
+}
 
-    case PCIDXB:
-    case PCPOSTIDX:
-    case PCPREIDX:
-    case AregIDXB:
-    case AregPOSTIDX:
-    case AregPREIDX:
-	if (*++ptr == '[')
-	    ptr++;
-	while (1) {
-	    if (*ptr == 'z')
-		ptr++;
-	    if (ptr[0] == 'a' && ptr[1] == '7') {
-		*ptr++ = 's';
-		*ptr++ = 'p';
-	    }
-	    if ((ptr = strchr (ptr, ',')) == NULL)
-		return;
-	    ptr++;
-	}
-	return;
+// アドレッシング形式を旧式の表記に変える
+static void syntax_new_to_old(operand* op) {
+  char* optr = op->operand;
+  char* p;
+
+  switch (op->ea) {
+    case AbShort: /* (abs)[.w] -> abs[.w] */
+    case AbLong:  /* (abs)[.l] -> abs[.l] */
+      p = strchr(optr, ')');
+      strcpy(p, p + 1);
+      strcpy(optr, optr + 1);
+      break;
+
+    case AregIDX:  // (d8,an,ix) -> d8(an,ix)
+      if ((p = strchr(optr, ',')) == NULL) {
+        break;  // ありえないが念のため
+      }
+      if (strchr(p + 1, ',') == NULL) {
+        break;  // (an,ix) ならそのまま
+      }
+      *p = '(';
+      strcpy(optr, optr + 1);
+      break;
+
+    case AregDISP:  // (d16,an)   -> d16(an)
+    case PCIDX:     // (d8,pc,ix) -> d8(pc,ix)
+    case PCDISP:    // (d16,pc)   -> d16(pc)
+      if ((p = strchr(optr, ',')) == NULL) {
+        break;  // 相対分岐命令
+      }
+      *p = '(';
+      strcpy(optr, optr + 1);
+      break;
 
     default:
-	return;
-    }
-
-    if (ptr[0] == 'a' && ptr[1] == '7') {
-	*ptr++ = 's';
-	*ptr++ = 'p';
-    }
-
+      break;
+  }
 }
 
+// opesizeに対応する.dsのサイズと単位バイト数を返す
+SizeLength getSizeBytes(opesize size) {
+  switch (size) {
+    default:
+      break;
 
-/*
+    case WORDSIZE:
+    case RELTABLE:
+      return (SizeLength){WORDSIZE, 2};
+    case LONGSIZE:
+    case RELLONGTABLE:
+      return (SizeLength){LONGSIZE, 4};
+    case QUADSIZE:
+      return (SizeLength){QUADSIZE, 8};
+    case SINGLESIZE:
+      return (SizeLength){SINGLESIZE, 4};
+    case DOUBLESIZE:
+      return (SizeLength){DOUBLESIZE, 8};
+    case EXTENDSIZE:
+      return (SizeLength){EXTENDSIZE, 12};
+    case PACKEDSIZE:
+      return (SizeLength){PACKEDSIZE, 12};
+  }
 
-	アドレッシング形式を旧式の表記に変える.
-
-*/
-
-private void
-syntax_new_to_old (operand *op)
-{
-    char *optr = op->operand;
-    char *p;
-
-    switch (op->ea) {
-	case AbShort:			/* (abs)[.w] -> abs[.w] */
-	case AbLong:			/* (abs)[.l] -> abs[.l] */
-	    p = strchr (optr, ')');
-	    strcpy (p, p + 1);
-	    strcpy (optr, optr + 1);
-	    break;
-
-	case AregIDX:			/* (d8,an,ix) -> d8(an,ix) */
-	    if (optr[1] == 'a' || optr[1] == 'A')
-		break;			/* ディスプレースメント省略 */
-	    /* fall through */
-	case AregDISP:			/* (d16,an)   -> d16(an)   */
-	case PCIDX:			/* (d8,pc,ix) -> d8(pc,ix) */
-	case PCDISP:			/* (d16,pc)   -> d16(pc)   */
-	    if ((p = strchr (optr, ',')) == NULL)
-		break;			/* 相対分岐命令 */
-	    *p = '(';
-	    strcpy (optr, optr + 1);
-	    break;
-
-	default:
-	    break;
-    }
+  return (SizeLength){BYTESIZE, 1};
 }
 
-
+// .dsのサイズと総バイト数から、正規化した.dsのサイズと単位数を返す
+SizeLength getSizeLength(SizeLength sb, int bytes) {
+  if (sb.length >= 2) {
+    // 単位バイト数の倍数ならそのサイズで出力
+    int units = bytes / sb.length;
+    if (units * sb.length == bytes) return (SizeLength){sb.size, units};
+  }
+  return (SizeLength){BYTESIZE, bytes};
+}
 
 /*
 
@@ -817,30 +499,30 @@ syntax_new_to_old (operand *op)
     pcend
 
 */
-private address
-datagen (address pc, address pcend, opesize size)
-{
-    address next_adrs;
+static address datagen(address pc, address pcend, opesize size) {
+  SymbolLabelFormula slfml;
 
-    while (pc < pcend) {
-	if ((next_adrs = nearadrs (pc)) < pcend) {
-	    if (next_adrs != pc) {
-		datagen_sub (pc, next_adrs, size);
-		pc = next_adrs;
-	    }
-	    output_opecode (PSEUDO DC_L);
-	    label_op_out ((address) peekl (next_adrs + Ofst));
-	    newline (next_adrs);
-	    pc += 4;
-	}
-	else {
-	    datagen_sub (pc, pcend, size);
-	    pc = pcend;
-	}
+  while (pc < pcend) {
+    address next_adrs = nearadrs(pc);
+
+    if (pcend <= next_adrs) {
+      // ブロック内にアドレス依存データがなければまるごと出力して終わり
+      datagen_sub(pc, pcend, size);
+      return pcend;
     }
-    return pcend;
-}
 
+    if (next_adrs != pc) {
+      // ブロック先頭からアドレス依存データの手前までを出力
+      datagen_sub(pc, next_adrs, size);
+      pc = next_adrs;
+    }
+    // アドレス依存データを .dc.l Lxxxxxx として出力
+    makeSymLabFormula(&slfml, (address)peekl(next_adrs + Dis.Ofst));
+    outputData3(pc, OpString.dc[LONGSIZE], slfml.symbol, slfml.expr);
+    pc += 4;
+  }
+  return pcend;
+}
 
 /*
 
@@ -853,556 +535,385 @@ datagen (address pc, address pcend, opesize size)
     size : data size
 
 */
-private void
-datagen_sub (address pc, address pcend, opesize size)
-{
-    switch (size) {
+static void datagen_sub(address pc, address pcend, opesize size) {
+  switch (size) {
     case STRING:
-	strgen (pc, pcend);
-	break;
+      strgen(pc, pcend);
+      break;
     case RELTABLE:
-	relgen (pc, pcend);
-	break;
     case RELLONGTABLE:
-	rellonggen (pc, pcend);
-	break;
+      relgen(pc, pcend, size);
+      break;
     case ZTABLE:
-	zgen (pc, pcend);
-	break;
-#ifdef	OSKDIS
+      zgen(pc, pcend);
+      break;
+
     case WTABLE:
-	wgen (pc, pcend);
-	break;
-#endif	/* OSKDIS */
+      Dis.actions->datagenWTable(pc, pcend);
+      break;
+
     default:
-	dataout (pc, pcend - pc, size);
-	break;
-    }
+      dataout(pc, pcend - pc, size);
+      break;
+  }
 }
 
+typedef enum {
+  COMPRESS_NONE,
+  COMPRESS_DCB,  // .dcb.b (同じ値の繰り返し)
+  COMPRESS_DS,   // .ds.b (値がすべて0)
+} CompressMode;
 
-/*
+// データ領域が圧縮可能かを調べる(バイト単位)
+static CompressMode getCompressModeByte(codeptr ptr, size_t bytes) {
+  UBYTE value = peekb(ptr);
+  int i;
 
-  データブロックの出力
+  // [1] [2] [3] がすべて [0] と同じ値であることを確認
+  bytes -= 1;
+  for (i = 1; i <= 3; i += 1) {
+    if (value != peekb(ptr + i)) return COMPRESS_NONE;
+    if (--bytes == 0) return (value == 0) ? COMPRESS_DS : COMPRESS_DCB;
+  }
 
-  input :
-    pc : data begin address
-    byte : number of bytes
-    size : data size ( UNKNOWN , BYTESIZE , WORDSIZE , LONGSIZE only )
-
-*/
-private void
-dataout (address pc, ULONG byte, opesize size)
-{
-    address store = pc + Ofst;
-    int odd_flag = (int)store & 1;
-
-    DEBUG_PRINT (("dataout : store %x byte %x size %x\n", store, byte, size));
-    charout ('#');
-
-    switch (size) {
-	case WORDSIZE:
-	    if (odd_flag || (byte % sizeof (UWORD)))
-		break;
-	    if (byte == sizeof (UWORD)) {
-		output_opecode (PSEUDO DC_W);
-#if 0
-		outputax4_without_0supress (peekw (store));
-#else
-		outputaxd (peekw (store), 4);
-#endif
-		newline (pc);
-	    } else
-		wordout (pc, byte);
-	    return;
-
-	case LONGSIZE:
-	    if (odd_flag || (byte % sizeof (ULONG)))
-		break;
-	    if (byte == sizeof (ULONG)) {
-		output_opecode (PSEUDO DC_L);
-#if 0
-		outputax8_without_0supress (peekl (store));
-#else
-		outputaxd (peekl (store), 8);
-#endif
-		newline (pc);
-	    } else
-		longout (pc, byte);
-	    return;
-
-	case QUADSIZE:
-	    if (odd_flag || (byte % sizeof (quadword)))
-		break;
-	    quadout (pc, byte);
-	    return;
-
-	case SINGLESIZE:
-	    if (odd_flag || (byte % sizeof (float)))
-		break;
-	    floatout (pc, byte);
-	    return;
-
-	case DOUBLESIZE:
-	    if (odd_flag || (byte % sizeof (double)))
-		break;
-	    doubleout (pc, byte);
-	    return;
-
-	case EXTENDSIZE:
-	    if (odd_flag || (byte % sizeof (long double)))
-		break;
-	    extendout (pc, byte);
-	    return;
-
-	case PACKEDSIZE:
-	    if (odd_flag || (byte % sizeof (packed_decimal)))
-		break;
-	    packedout (pc, byte);
-	    return;
-
-	case BYTESIZE:
-	    if (byte == sizeof (UBYTE)) {
-		output_opecode (PSEUDO DC_B);
-#if 0
-		outputax2_without_0supress (*(UBYTE*)store);
-#else
-		outputaxd (*(UBYTE*)store, 2);
-#endif
-		newline (pc);
-		return;
-	    }
-	    break;
-
-	default:
-	    break;
-    }
-
-    byteout (pc, byte, FALSE);
+  // 残りがあればロングワード単位で比較する
+  if (bytes) {
+    if (memcmp(ptr, ptr + 4, bytes) != 0) return COMPRESS_NONE;
+  }
+  return (value == 0) ? COMPRESS_DS : COMPRESS_DCB;
 }
 
+// データ領域が圧縮可能かを調べる(ワード単位)
+static CompressMode getCompressModeWord(codeptr ptr, size_t bytes) {
+  UWORD value = peekw(ptr);
 
-/*
+  // [1] が [0] と同じ値であることを確認
+  if (value != peekw(ptr + 2)) return COMPRESS_NONE;
 
-  データブロックの出力
-
-  input :
-    pc : data begin address
-    byte : number of bytes
-    roption_flag : hex comment to string flag
-    ( case this function is used for string output )
-
-*/
-private void
-byteout (address pc, ULONG byte, boolean roption_flag)
-{
-    address store = pc + Ofst;
-
-#ifndef OSKDIS	/* OS-9/68K の r68 には dcb に相当する疑似命令が無い */
-    if (!roption_flag
-     && (byte >= 1 * 2) && Compress_len && (byte >= Compress_len)) {
-	UBYTE* ptr = (UBYTE*) store;
-	int val = *ptr;
-
-	while (ptr < store + byte && *ptr == val)
-	    ptr++;
-	if (ptr == store + byte) {
-	    if (val == 0) {
-		output_opecode (PSEUDO DS_B);
-		outputfa ("%d", byte);
-	    } else {
-		output_opecode (PSEUDO DCB_B);
-		outputfa ("%d,", byte);
-		outputax2_without_0supress (val);
-	    }
-	    newline (pc);
-	    return;
-	}
-    }
-#endif	/* !OSKDIS */
-
-    {
-	ULONG max = (byte - 1) / Data_width;
-	ULONG mod = (byte - 1) % Data_width;
-	int i, j;
-
-	for (i = 0; i <= max; i++) {
-	    if (roption_flag) {
-		static char comment[] = ";\t\t";
-		comment[0] = CommentChar;
-		outputa (comment);
-	    } else
-		output_opecode (PSEUDO DC_B);
-
-	    for (j = 1; j < (i == max ? mod + 1 : Data_width); j++) {
-		outputax2_without_0supress (*store++);
-		outputca (',');
-	    }
-	    outputax2_without_0supress (*store++);
-	    newline (pc);
-	    pc += Data_width;
-	}
-    }
+  // 残りがあればロングワード単位で比較する
+  if (bytes > 4) {
+    if (memcmp(ptr, ptr + 4, bytes - 4) != 0) return COMPRESS_NONE;
+  }
+  return (value == 0) ? COMPRESS_DS : COMPRESS_DCB;
 }
 
+// データ領域が圧縮可能かを調べる
+//   bytesPerUnit == 1、2または4の倍数であること
+static CompressMode getCompressMode(codeptr ptr, size_t bytes, int bytesPerUnit,
+                                    int units) {
+  if ((int)bytes < Dis.compressLen || Dis.compressLen == 0)
+    return COMPRESS_NONE;
+  if (units < 2) return COMPRESS_NONE;
 
-private void
-wordout (address pc, ULONG byte)
-{
-    address store = pc + Ofst;
+  if (bytesPerUnit == 1) return getCompressModeByte(ptr, bytes);
+  if (bytesPerUnit == 2) return getCompressModeWord(ptr, bytes);
 
-#ifndef OSKDIS
-    if ((byte >= sizeof (UWORD) * 2) && Compress_len && (byte >= Compress_len)) {
-	UWORD* ptr = (UWORD*) store;
-	int val = peekw (ptr);
+  // bytesPerUnit >= 4
+  if (memcmp(ptr, ptr + bytesPerUnit, bytes - bytesPerUnit) != 0)
+    return COMPRESS_NONE;
 
-	while ((address) ptr < store + byte && peekw (ptr) == val)
-	    ptr++;
-	if ((address) ptr == store + byte) {
-	    if (val == 0) {
-		output_opecode (PSEUDO DS_W);
-		outputfa ("%d", byte / sizeof (UWORD));
-	    } else {
-		output_opecode (PSEUDO DCB_W);
-		outputfa ("%d,", byte / sizeof (UWORD));
-		outputax4_without_0supress (val);
-	    }
-	    newline (pc);
-	    return;
-	}
-    }
-#endif	/* !OSKDIS */
-
-    {
-	int datawidth = (Data_width + sizeof (UWORD) - 1) / sizeof (UWORD);
-	ULONG max = (byte / sizeof (UWORD) - 1) / datawidth;
-	ULONG mod = (byte / sizeof (UWORD) - 1) % datawidth;
-	int i, j;
-
-	for (i = 0; i <= max; i++) {
-	    output_opecode (PSEUDO DC_W);
-	    for (j = 1; j < (i == max ? mod + 1 : datawidth); j++) {
-		outputax4_without_0supress (peekw (store));
-		store += sizeof (UWORD);
-		outputca (',');
-	    }
-	    outputax4_without_0supress (peekw (store));
-	    store += sizeof (UWORD);
-	    newline (pc);
-	    pc += datawidth * sizeof (UWORD);
-	}
-    }
+  // 値が0かどうかを確認する
+  do {
+    if (peekl(ptr) != 0) return COMPRESS_DCB;
+    bytesPerUnit -= 4;
+  } while (bytesPerUnit);
+  return COMPRESS_DS;
 }
 
+// データを文字列化してバッファに書き込む
+//   文字列末尾('\0')のアドレスを返す
+static char* stringifyData(char* buffer, codeptr store, opesize size) {
+  char* p = buffer;
 
-private void
-longout (address pc, ULONG byte)
-{
-    address store = pc + Ofst;
+  switch (size) {
+    default:
+    case BYTESIZE:
+      *p++ = '$';
+      return itox2_without_0supress(p, peekb(store));
 
-#ifndef OSKDIS
-    if ((byte >= sizeof (ULONG) * 2) && Compress_len && (byte >= Compress_len)) {
-	ULONG* ptr = (ULONG*) store;
-	int val = peekl (ptr);
+    case WORDSIZE:
+      *p++ = '$';
+      return itox4_without_0supress(p, peekw(store));
 
-	while ((address) ptr < store + byte && peekl (ptr) == val )
-	    ptr++;
-	if ((address) ptr == store + byte) {
-	    if (val == 0) {
-		output_opecode (PSEUDO DS_L);
-		outputfa ("%d", byte / sizeof (ULONG));
-	    } else {
-		output_opecode (PSEUDO DCB_L);
-		outputfa ("%d,", byte / sizeof (ULONG));
-		outputax8_without_0supress (val);
-	    }
-	    newline (pc);
-	    return;
-	}
-    }
-#endif	/* !OSKDIS */
+    case LONGSIZE:
+      *p++ = '$';
+      return itox8_without_0supress(p, peekl(store));
 
-    {
-	int datawidth = (Data_width + sizeof (ULONG) - 1) / sizeof (ULONG);
-	ULONG max = (byte / sizeof (ULONG) - 1) / datawidth;
-	ULONG mod = (byte / sizeof (ULONG) - 1) % datawidth;
-	int i, j;
+    case QUADSIZE:
+      return stringifyQuadWord(p, (quadword*)store);
 
-	for (i = 0; i <= max; i++) {
-	    output_opecode (PSEUDO DC_L);
-	    for (j = 1; j < (i == max ? mod + 1 : datawidth); j++) {
-		outputax8_without_0supress (peekl(store));
-		store += sizeof (ULONG);
-		outputca (',');
-	    }
-	    outputax8_without_0supress (peekl (store));
-	    store += sizeof (ULONG);
-	    newline (pc);
-	    pc += datawidth * sizeof (ULONG);
-	}
-    }
+    case SINGLESIZE:
+      return fpconv_s(p, store);
+
+    case DOUBLESIZE:
+      return fpconv_d(p, store);
+
+    case EXTENDSIZE:
+      return fpconv_x(p, store);
+
+    case PACKEDSIZE:
+      return fpconv_p(p, store);
+  }
 }
 
+// .dc.?を一行文字列化するのに必要なバッファサイズ
+#define MAX_DC_B_BUFSIZE (4 * DATA_WIDTH_MAX)  // "$xx,"
+#define MAX_DC_REAL_BUFSIZE (64 * 1)
+#define MAX_DC_BUFSIZE MAX(MAX_DC_B_BUFSIZE, MAX_DC_REAL_BUFSIZE)
 
-private void
-quadout (address pc, ULONG byte)
-{
-    quadword* store = (quadword*)(pc + Ofst);
-    char buf[64];
-    int i = (byte / sizeof(quadword));
+// データブロックの出力(.dc.?)
+void dataoutDc(address pc, codeptr store, opesize size, ULONG bytes,
+               ULONG bytesPerUnit) {
+  ULONG maxBytesPerLine = bytesPerUnit;
+  char buffer[MAX_DC_BUFSIZE + 16];
 
-#ifndef OSKDIS
-    if ((i >= 2) && Compress_len && (byte >= Compress_len)
-		 && (memcmp (store, store + 1, byte - sizeof(quadword)) == 0)) {
-	fpconv_q (buf, store);
-	output_opecode (PSEUDO DCB_Q);
-	outputfa ("%d,%s", i, buf);
-	newline (pc);
-	return;
-    }
-#endif
+  // バイト、ワード、ロングワードは一行に複数データを出力する
+  if (size <= LONGSIZE) {
+    // 他のサイズでも複数データ出力する場合、以下の方法では
+    // 12バイトサイズの端数切り上げができないので注意。
+    ULONG n = (bytesPerUnit - 1);
+    maxBytesPerLine = (Dis.dataWidth + n) & ~n;
+  }
+
+  do {
+    ULONG bytesPerLine = MIN(bytes, maxBytesPerLine);
+    ULONG rest = bytesPerLine;
+    char* p = buffer;
 
     do {
-	fpconv_q (buf, store++);
-	output_opecode (PSEUDO DC_Q);
-	outputa (buf);
-	newline (pc);
-	pc += sizeof(quadword);
-    } while (--i);
+      p = stringifyData(p, store, size);
+      *p++ = ',';
+      store += bytesPerUnit;
+      rest -= bytesPerUnit;
+    } while (rest);
+    *--p = '\0';  // 末尾のカンマを消す
+
+    outputData2(pc, OpString.dc[size], buffer);
+
+    pc += bytesPerLine;
+    bytes -= bytesPerLine;
+  } while (bytes);
 }
 
+// データブロックの出力
+static void dataout(address pc, ULONG bytes, opesize size) {
+  codeptr store = pc + Dis.Ofst;
+  char buffer[128];
+  boolean canCompress;
+  CompressMode compMode;
+  int bytesPerUnit;
+  int units;
 
-private void
-floatout (address pc, ULONG byte)
-{
-    float* store = (float*)(pc + Ofst);
-    char buf[64];
-    int i = (byte / sizeof(float));
+  charout('#');
 
-#ifndef OSKDIS
-    if ((i >= 2) && Compress_len && (byte >= Compress_len)
-		 && (memcmp (store, store + 1, byte - sizeof(float)) == 0)) {
-	fpconv_s (buf, store);
-	output_opecode (PSEUDO DCB_S);
-	outputfa ("%d,%s", i, buf);
-	newline (pc);
-	return;
+  // 頻出パターンを優先して処理する
+  if (size == BYTESIZE || size == UNKNOWN) {
+    if (bytes == 1) {
+      itoxd(buffer, peekb(store), 2);
+      outputData2(pc, OpString.dc[BYTESIZE], buffer);
+      return;
     }
-#endif
+  } else if (size == LONGSIZE) {
+    if (bytes == sizeof(ULONG) && isEven(pc)) {
+      itoxd(buffer, peekl(store), 8);
+      outputData2(pc, OpString.dc[LONGSIZE], buffer);
+      return;
+    }
+  } else if (size == WORDSIZE) {
+    if (bytes == sizeof(UWORD) && isEven(pc)) {
+      itoxd(buffer, peekw(store), 4);
+      outputData2(pc, OpString.dc[WORDSIZE], buffer);
+      return;
+    }
+  }
+
+  // BYTESIZEの場合
+  canCompress = TRUE;
+  bytesPerUnit = 1;
+  units = bytes;
+
+  if (size != BYTESIZE) {
+    if (isOdd(pc)) {
+      size = BYTESIZE;
+    } else {
+      SizeLength sb = getSizeBytes(size);
+      SizeLength sl = getSizeLength(sb, bytes);
+      bytesPerUnit = sb.length;  // フォールバックした場合は1に戻すこと
+      units = sl.length;
+      size = sl.size;
+    }
+
+    // フォールバックでBYTESIZEになった場合は圧縮しない
+    if (size == BYTESIZE) {
+      canCompress = FALSE;
+      bytesPerUnit = 1;
+    }
+  }
+
+  compMode = canCompress ? getCompressMode(store, bytes, bytesPerUnit, units)
+                         : COMPRESS_NONE;
+  if (compMode == COMPRESS_NONE) {
+    dataoutDc(pc, store, size, bytes, bytesPerUnit);
+  } else if (compMode == COMPRESS_DCB) {
+    char* p = buffer + snprintf(buffer, sizeof(buffer), "%d,", units);
+    stringifyData(p, store, size);
+    outputData2(pc, OpString.dcb[size], buffer);
+  } else {  // COMPRESS_DS
+    snprintf(buffer, sizeof(buffer), "%d", units);
+    outputData2(pc, OpString.ds[size], buffer);
+  }
+}
+
+// -rオプションのコメントの出力(文字列の16進数ダンプ)
+static void byteout_for_roption(address pc, codeptr store, ULONG bytes) {
+  char buffer[MAX_DC_B_BUFSIZE + 16];
+  static char comment[] = ";\t\t";
+  comment[0] = Dis.commentStr[0];
+
+  do {
+    ULONG bytesPerLine = MIN(bytes, (size_t)Dis.dataWidth);
+    ULONG rest = bytesPerLine;
+    char* p = buffer;
 
     do {
-	fpconv_s (buf, store++);
-	output_opecode (PSEUDO DC_S);
-	outputa (buf);
-	newline (pc);
-	pc += sizeof(float);
-    } while (--i);
+      *p++ = '$';
+      p = itox2_without_0supress(p, peekb(store));
+      *p++ = ',';
+      store += 1;
+      rest -= 1;
+    } while (rest);
+    *--p = '\0';  // 末尾のカンマを消す
+
+    otherDirective2(comment, buffer);
+
+    pc += bytesPerLine;
+    bytes -= bytesPerLine;
+  } while (bytes);
 }
 
+void otherDirective(const char* s) {
+  outputDirective(LINETYPE_OTHER, (address)0, s);
+}
 
-private void
-doubleout (address pc, ULONG byte)
-{
-    double* store = (double*)(pc + Ofst);
-    char buf[64];
-    int i = (byte / sizeof(double));
+void otherDirective2(const char* s1, const char* s2) {
+  outputDirective2(LINETYPE_OTHER, (address)0, s1, s2);
+}
 
-#ifndef OSKDIS
-    if ((i >= 2) && Compress_len && (byte >= Compress_len)
-		 && (memcmp (store, store + 1, byte - sizeof(double)) == 0)) {
-	fpconv_d (buf, store);
-	output_opecode (PSEUDO DCB_D);
-	outputfa ("%d,%s", i, buf);
-	newline (pc);
-	return;
+#define ENTERSTR()    \
+  if (!strmode) {     \
+    if (comma) {      \
+      *p++ = comma;   \
+      column += 1;    \
+    }                 \
+    *p++ = quoteChar; \
+    column += 1;      \
+    strmode = TRUE;   \
+  }
+#define EXITSTR()     \
+  if (strmode) {      \
+    *p++ = quoteChar; \
+    column++;         \
+    strmode = FALSE;  \
+  }
+
+static boolean is_sb(char* ptr, char quoteChar) {
+  return (isprkana(ptr[0]) && ptr[0] != quoteChar);
+}
+
+static boolean is_mb_zen(char* ptr) {
+  return (iskanji(ptr[0]) && iskanji2(ptr[1]));
+}
+
+static boolean is_mb_han(char* ptr) {
+  if (ptr[0] == 0x80 || (0xf0 <= ptr[0] && ptr[0] <= 0xf3)) {
+    if ((0x20 <= ptr[1] && ptr[1] <= 0x7e) ||
+        (0x86 <= ptr[1] && ptr[1] <= 0xfd))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+//  文字列の出力
+//
+//  input:
+//    pc   : string begin address
+//    pcend: string end address
+static void strgen(address pc, address pcend) {
+  // 最大消費パターンは、二バイト半角文字が1桁で2バイト
+  char buffer[STRING_WIDTH_MAX * 2 + 16];
+  char* store = (char*)(Dis.Ofst + pc);
+  char* stend = (char*)(Dis.Ofst + pcend);
+  char quoteChar = Dis.quoteChar;
+
+  charout('s');
+
+  while (store < stend) {
+    codeptr store0 = (codeptr)store;
+    address line;
+    boolean strmode = FALSE;
+    int column = 0;
+    char comma = 0;  // ',' ならカンマを出力する
+    char* p = buffer;
+
+    while (column < Dis.stringWidth && store < stend) {
+      if (is_sb(store, quoteChar)) {
+        // ANK 文字
+        ENTERSTR();
+        *p++ = *store++;
+        column += 1;
+      } else if (is_mb_zen(store) && store + 1 < stend) {
+        // 二バイト全角
+        ENTERSTR();
+        *p++ = *store++;
+        *p++ = *store++;
+        column += 2;
+      } else if (is_mb_han(store) && store + 1 < stend) {
+        // 二バイト半角
+        ENTERSTR();
+        *p++ = *store++;
+        *p++ = *store++;
+        column += 1;
+      } else {
+        char c = *store++;
+        EXITSTR();
+        if (comma) {
+          *p++ = comma;
+          column += 1;
+        }
+        *p++ = '$';
+        p = itox2_without_0supress(p, c);
+        column += 3;  // strlen("$xx")
+
+        // \n または NUL なら改行する
+        if (store != stend && (c == '\n' || c == '\0')) {
+          // ただし、後に続く NUL は全て一行に納める
+          if (*store == '\0')
+            ;
+          else
+            break;  // 改行
+        }
+      }
+      comma = ',';
     }
-#endif
+    if (strmode) *p++ = quoteChar;
+    *p = '\0';
 
-    do {
-	fpconv_d (buf, store++);
-	output_opecode (PSEUDO DC_D);
-	outputa (buf);
-	newline (pc);
-	pc += sizeof(double);
-    } while (--i);
+    line = (address)(store0 - Dis.Ofst);
+    outputData2(line, OpString.dc[BYTESIZE], buffer);
+
+    if (Dis.r)
+      byteout_for_roption(line, store0, (ULONG)(store - (char*)store0));
+  }
 }
+#undef ENTERSTR
+#undef EXITSTR
 
-
-private void
-extendout (address pc, ULONG byte)
-{
-    long double* store = (long double*)(pc + Ofst);
-    char buf[64];
-    int i = (byte / sizeof(long double));
-
-#ifndef OSKDIS
-    if ((i >= 2) && Compress_len && (byte >= Compress_len)
-		 && (memcmp (store, store + 1, byte - sizeof(long double)) == 0)) {
-	fpconv_x (buf, store);
-	output_opecode (PSEUDO DCB_X);
-	outputfa ("%d,%s", i, buf);
-	newline (pc);
-	return;
-    }
-#endif
-
-    do {
-	fpconv_x (buf, store++);
-	output_opecode (PSEUDO DC_X);
-	outputa (buf);
-	newline (pc);
-	pc += sizeof(long double);
-    } while (--i);
+// 指定範囲を .dc.b で出力する
+//   データブロックの末尾の半端データの出力用
+void dataoutDcByte(address pc, address pcend) {
+  ULONG bytes = pcend - pc;
+  if (bytes) dataoutDc(pc, pc + Dis.Ofst, BYTESIZE, bytes, 1);
 }
-
-
-private void
-packedout (address pc, ULONG byte)
-{
-    packed_decimal* store = (packed_decimal*)(pc + Ofst);
-    char buf[64];
-    int i = (byte / sizeof(packed_decimal));
-
-#ifndef OSKDIS
-    if ((i >= 2) && (memcmp (store, store + 1, byte - sizeof(packed_decimal)) == 0)) {
-	fpconv_p (buf, store);
-	output_opecode (PSEUDO DCB_P);
-	outputfa ("%d,%s", i, buf);
-	newline (pc);
-	return;
-    }
-#endif
-
-    do {
-	fpconv_p (buf, store++);
-	output_opecode (PSEUDO DC_P);
-	outputa (buf);
-	newline (pc);
-	pc += sizeof(packed_decimal);
-    } while (--i);
-}
-
-
-
-/*
-
-  文字列の出力
-
-  input :
-    pc : string begin address
-    pcend : string end address
-
-*/
-#ifdef	OSKDIS
-#define QUOTE_CHAR	'\"'
-#define QUOTE_STR	"\""
-#else
-#define QUOTE_CHAR	'\''
-#define QUOTE_STR	"\'"
-#endif	/* OSKDIS */
-
-#define ENTERSTR() \
-    if (!strmode) {						\
-	if (comma) { outputa ("," QUOTE_STR); column += 2; }	\
-	else { outputca (QUOTE_CHAR); column++;}		\
-	strmode = TRUE;						\
-    }
-#define EXITSTR() \
-    if (strmode) {		\
-	outputca (QUOTE_CHAR);	\
-	column++;		\
-	strmode = FALSE;	\
-    }
-
-static INLINE boolean
-is_sb (unsigned char* ptr)
-{
-    return (isprkana (ptr[0]) && ptr[0] != QUOTE_CHAR);
-}
-
-static INLINE boolean
-is_mb_zen (unsigned char* ptr)
-{
-    return (iskanji (ptr[0]) && iskanji2 (ptr[1]));
-}
-
-static INLINE boolean
-is_mb_han (unsigned char* ptr)
-{
-    if (ptr[0] == 0x80 || (0xf0 <= ptr[0] && ptr[0] <= 0xf3)) {
-	if ((0x20 <= ptr[1] && ptr[1] <= 0x7e)
-	 || (0x86 <= ptr[1] && ptr[1] <= 0xfd))
-	    return TRUE;
-    }
-    return FALSE;
-}
-
-private void
-strgen (address pc, address pcend)
-{
-    address	store = Ofst + pc;
-    address	stend = Ofst + pcend;
-
-    charout ('s');
-
-    while (store < stend) {
-	address    store0 = store;
-	boolean    strmode = FALSE;
-	int	column = 0;
-	char	comma = 0;		/* 1 なら , を出力する */
-
-	output_opecode (PSEUDO DC_B);
-
-	while (column < String_width && store < stend) {
-
-	    if (is_sb (store)) {
-		/* ANK 文字 */
-		ENTERSTR();
-		outputca (*(UBYTE*)store++);
-		column++;
-	    } else if (is_mb_zen (store) && store + 1 < stend) {
-		/* 二バイト全角 */
-		ENTERSTR();
-		outputca (*(UBYTE*)store++);
-		outputca (*(UBYTE*)store++);
-		column += 2;
-	    } else if (is_mb_han (store) && store + 1 < stend) {
-		/* 二バイト半角 */
-		ENTERSTR();
-		outputca (*(UBYTE*)store++);
-		outputca (*(UBYTE*)store++);
-		column++;
-	    } else {
-		unsigned char c = *(UBYTE*)store++;
-		EXITSTR();
-		if (comma)
-		    outputca (',');
-		outputax2_without_0supress (c);
-		column += comma + 3;				/* ,$xx */
-
-		/* \n または NUL なら改行する */
-		if (store != stend && (c == '\n' || c == '\0')) {
-		    /* ただし、後に続く NUL は全て一行に納める */
-		    if (*(UBYTE*)store == '\0')
-			;
-		    else
-			break;					/* 改行 */
-		}
-	    }
-	    comma = 1;
-	}
-	if (strmode)
-	    outputca (QUOTE_CHAR);
-
-	newline (store0 - Ofst);
-	if (option_r)
-	    byteout (store0 - Ofst, store - store0, TRUE);
-    }
-}
-#undef	ENTERSTR
-#undef	EXITSTR
-#undef	QUOTE_CHAR
-
 
 /*
 
@@ -1411,118 +922,52 @@ strgen (address pc, address pcend)
   input :
     pc : relative offset table begin address
     pcend : relative offset table end address
+    size: RELTABLE or RELLONGTABLE
 
 */
-private void
-relgen (address pc, address pcend)
-{
-    char buf[256], tabletop[128];
-    char* bufp;
-    const address pc0 = pc;
+static void relgen(address tabletop, address pcend, opesize size) {
+  char buf[256], minusTable[128];
+  uint8_t isLong = (size == RELLONGTABLE);
+  ULONG bytes = isLong ? 4 : 2;
+  address pc;
 
-    charout ('r');
+  // 相対オフセットテーブル解析後のプログラム領域解析でテーブルの途中に
+  // ラベルが登録されるとテーブルの大きさが半端になることがある対策
+  const address limit = pcend - bytes;
 
-    /* 予めバッファの先頭に .dc.w を作成しておく */
-    bufp = strend (strcpy (buf, PSEUDO DC_W));
-    if (option_U)
-	strupr (buf);
+  // あらかじめバッファの先頭に .dc 疑似命令を作成しておく
+  // -xオプションがあるためOutputData2()で出力することができず、
+  // 一行まるごとバッファに書き込む必要がある。
+  char* bufp = strcpy2(buf, OpString.dc[isLong ? LONGSIZE : WORDSIZE]);
 
-    /* -Lxxxxxx も作成しておく */
-    tabletop[0] = '-';
-    make_proper_symbol (&tabletop[1], pc0);
+  // -Lxxxxxx も作成しておく
+  minusTable[0] = '-';
+  make_proper_symbol(&minusTable[1], tabletop);
 
-    while (pc < pcend) {
-	int dif = (int)(signed short) peekw (pc + Ofst);
-	char* p;
+  charout(isLong ? 'R' : 'r');
 
-	if ((LONG) (pc0 + dif) < (LONG) BeginTEXT) {
-	    make_proper_symbol (bufp, BeginTEXT);
-	    p = strend (bufp);
-	    *p++ = '-';
-	    p = itox6d (p, BeginTEXT - (pc0 + dif));
-	} else if ((LONG) (pc0 + dif) > (LONG) Last) {
-	    make_proper_symbol (bufp, Last);
-	    p = strend (bufp);
-	    *p++ = '+';
-	    p = itox6d (p, (pc0 + dif) - Last);
-	} else {
-	    make_proper_symbol (bufp, pc0 + dif);
-	    p = strend (bufp);
-	}
+  for (pc = tabletop; pc <= limit; pc += bytes) {
+    codeptr store = pc + Dis.Ofst;
+    ULONG offs = isLong ? peekl(store) : (ULONG)extl(peekw(store));
+    char* p = bufp;
 
-	strcpy (p, tabletop);
-
-	/* 相対テーブルも -x でコメントを出力する */
-	if (option_x)
-	    byteout_for_xoption (pc, sizeof (WORD), buf);
-
-	outputa (buf);
-	newline (pc);
-
-	pc += sizeof (WORD);
+    if (offs == 0) {
+      // オフセット値0の場合は .dc 0 にする
+      *p++ = '0';
+      *p = '\0';
+    } else {
+      p = make_proper_symbol(p, tabletop + offs);
+      strcpy(p, minusTable);
     }
+
+    // 相対テーブルも -x でコメントを出力する
+    if (Dis.x) byteout_for_xoption(pc, bytes, buf);
+
+    outputData(pc, buf);
+  }
+
+  dataoutDcByte(pc, pcend);  // 半端に残ったデータがあれば出力
 }
-
-
-/*
-
-  ロングワードなリラティブオフセットテーブルの出力
-
-  input :
-    pc : relative offset table begin address
-    pcend : relative offset table end address
-
-*/
-private void
-rellonggen (address pc, address pcend)
-{
-    char buf[256], tabletop[128];
-    char* bufp;
-    const address pc0 = pc;
-
-    charout ('R');
-
-    /* 予めバッファの先頭に .dc.l を作成しておく */
-    bufp = strend (strcpy (buf, PSEUDO DC_L));
-    if (option_U)
-	strupr (buf);
-
-    /* -Lxxxxxx も作成しておく */
-    tabletop[0] = '-';
-    make_proper_symbol (&tabletop[1], pc0);
-
-    while (pc < pcend) {
-	int dif = (int) peekl (pc + Ofst);
-	char* p;
-
-	if ((LONG) (pc0 + dif) < (LONG) BeginTEXT) {
-	    make_proper_symbol (bufp, BeginTEXT);
-	    p = strend (bufp);
-	    *p++ = '-';
-	    p = itox6d (p, BeginTEXT - (pc0 + dif));
-	} else if ((LONG) (pc0 + dif) > (LONG) Last) {
-	    make_proper_symbol (bufp, Last);
-	    p = strend (bufp);
-	    *p++ = '+';
-	    p = itox6d (p, (pc0 + dif) - Last);
-	} else {
-	    make_proper_symbol (bufp, pc0 + dif);
-	    p = strend (bufp);
-	}
-
-	strcpy (p, tabletop);
-
-	/* 相対テーブルも -x でコメントを出力する */
-	if (option_x)
-	    byteout_for_xoption (pc, sizeof (LONG), buf);
-
-	outputa (buf);
-	newline (pc);
-
-	pc += sizeof (LONG);
-    }
-}
-
 
 /*
 
@@ -1533,41 +978,148 @@ rellonggen (address pc, address pcend)
     pcend : longword table end address
 
 */
-private void
-zgen (address pc, address pcend)
-{
-    address store;
-    address limit = pcend + Ofst - sizeof (ULONG);
+static void zgen(address pc, address pcend) {
+  const address limit = pcend - sizeof(ULONG);
 
-    charout ('z');
+  charout('z');
 
-    for (store = pc + Ofst; store <= limit; store += sizeof (ULONG)) {
-	char work[128];
-	address label = (address) peekl (store);
-	char* p;
+  while (pc <= limit) {
+    SymbolLabelFormula slfml;
+    makeSymLabFormula(&slfml, (address)peekl(pc + Dis.Ofst));
 
-	if ((LONG) label < (LONG) BeginTEXT) {
-	    make_proper_symbol (work, BeginTEXT);
-	    p = strend (work);
-	    *p++ = '-';
-	    itox6d (p, (ULONG) (BeginTEXT - label));
-	} else if ((LONG) label > (LONG) Last) {
-	    make_proper_symbol (work, Last);
-	    p = strend (work);
-	    *p++ = '+';
-	    itox6d (p, (ULONG) (label - Last));
-	} else
-	    make_proper_symbol (work, label);
+    outputData3(pc, OpString.dc[LONGSIZE], slfml.symbol, slfml.expr);
 
-	output_opecode (PSEUDO DC_L);
-	outputa (work);
-	newline (store - Ofst);
-    }
+    pc += sizeof(ULONG);
+  }
 
-    if (store - Ofst != pcend)
-	dataout (store - Ofst, pcend + Ofst - store, UNKNOWN);
+  dataoutDcByte(pc, pcend);  // 半端に残ったデータがあれば出力
 }
 
+static boolean end_by_break;
+
+/*
+
+  ユーザ定義のテーブルの出力
+
+  input :
+    fml : ユーザ定義のテーブル１行の構造体
+    tabletop : table top address
+    pc : pointing address
+    notlast : true iff this line is not last line at table
+  return :
+    next pointing address
+
+*/
+static address tablegen_sub(formula* fml, address tabletop, address pc,
+                            int notlast, int sectType) {
+  char buffer[256];
+  ParseTblParam param = {
+      .text = NULL,
+      .buffer = buffer,
+      .bufLen = sizeof(buffer),
+      .constValues = {0, tabletop}  //
+  };
+  int count = 1;
+  boolean firstCall = TRUE;
+
+  do {
+    ParseTblResult result;
+
+    lblbuf* lptr = next(pc + 1);
+    address nextlabel = lptr->label;
+    address nextPc;
+
+    // CRID, BREAKID, EVENID(アライン実行時)以外は全て TRUE
+    boolean pc_inc_inst = TRUE;
+
+    param.text = fml->expr;
+    param.constValues[PARSE_CONST_PC] = pc;
+    parseTableLine(&param, &result);
+    if (firstCall) {
+      count = result.count;
+      firstCall = FALSE;
+    }
+    nextPc = pc + result.bytes;
+
+    if ((nextlabel < nextPc) && (result.id != LASCIIID)) {
+      // 複数バイトのデータ中にラベルがある場合は分割して出力する
+      tablegen_label(pc, nextPc, lptr, sectType);
+    } else {
+      switch (result.id) {
+        default:
+          break;
+
+        case BYTESIZE:
+        case WORDSIZE:
+        case LONGSIZE:
+        case SINGLESIZE:
+        case DOUBLESIZE:
+        case EXTENDSIZE:
+        case PACKEDSIZE:
+          outputData2(pc, OpString.dc[result.id], buffer);
+          break;
+
+        case BYTEID:
+          datagen(pc, nextPc, BYTESIZE);
+          break;
+
+        case LASCIIID:
+          datagen(pc, pc + 1, BYTESIZE);  // .dc.b 文字列長
+          pc += 1;
+          if (nextlabel < nextPc) {
+            tablegen_label(pc, nextPc, lptr, sectType);
+            break;
+          }
+          // FALLTHRU
+        case ASCIIID:
+        case ASCIIZID:
+          strgen(pc, nextPc);
+          break;
+
+        case EVENID:
+          outputDirective(LINETYPE_DATA, pc, OpString.even);
+          if (result.bytes == 0) pc_inc_inst = FALSE;
+          break;
+
+        case CRID:
+          outputDirective(LINETYPE_DATA, pc, "");
+          pc_inc_inst = FALSE;
+          break;
+
+        case BREAKID:
+          if (result.value) {
+            end_by_break = TRUE;
+            goto tableend;
+          }
+          pc_inc_inst = FALSE;
+          break;
+      }
+    }
+    pc = nextPc;
+
+    if ((lptr = search_label(pc)) != NULL) {
+      // テーブル解析時にテーブル終了と判定したらそのアドレスをラベル登録するので、
+      // ここではそのラベルを見てテーブル終了を判断する
+      if (isENDTABLE(lptr->mode)) {
+        if (notlast && (fml + 1)->id == EVENID) {
+          // if .even here...
+          outputDirective(LINETYPE_DATA, pc, OpString.even);
+          pc += (pc & 1);
+        }
+        end_by_break = TRUE;
+        goto tableend;
+      }
+
+      if (pc_inc_inst) {
+        // labelout is not required at end of table
+        label_line_out(pc, lptr->mode, sectType, FALSE, LINETYPE_DATA);
+      }
+    }
+  } while (--count > 0);
+
+tableend:
+  return pc;
+}
 
 /*
 
@@ -1581,227 +1133,29 @@ zgen (address pc, address pcend)
     table end address
 
 */
-static boolean	end_by_break;
+static address tablegen(address pc, int sectType) {
+  int loop, i;
+  table* tableptr;
 
-private address
-tablegen (address pc, address pcend, lblmode mode)
-{
-    int loop, i;
-    table* tableptr;
+  charout('t');
 
-    DEBUG_PRINT (("enter tablegen\n"));
-    charout ('t');
+  if ((tableptr = search_table(pc)) == NULL)
+    internalError(__FILE__, __LINE__, "テーブルが無い(!?)。");
 
-    if ((tableptr = search_table (pc)) == NULL)
-	err ("Table が無い %06x (!?)\n" , pc);
+  end_by_break = FALSE;
+  pc = tableptr->tabletop;
 
-    end_by_break = FALSE;
-    pc = tableptr->tabletop;
+  for (loop = 0; loop < tableptr->loop; loop++) { /* implicit loop */
+    for (i = 0; i < tableptr->lines; i++) {       /* line# loop */
+      pc = tablegen_sub(&tableptr->formulaptr[i], tableptr->tabletop, pc,
+                        i + 1 < tableptr->lines, sectType);
 
-    for (loop = 0; loop < tableptr->loop; loop++) {	/* implicit loop */
-	for (i = 0; i < tableptr->lines; i++) {		/* line# loop */
-	    DEBUG_PRINT (("loop=%d i=%d\n", loop, i));
-	    pc = tablegen_sub (&tableptr->formulaptr[i],
-				tableptr->tabletop, pc, i + 1 < tableptr->lines);
-#if 0
-	    if ((lptr = search_label (Eval_PC)) != NULL) {
-		DEBUG_PRINT (("THERE IS LABEL (%x)\n", Eval_PC));
-		label_line_out (Eval_PC, FALSE);
-	    }
-#endif
-	    if (end_by_break)
-		goto ret;
-	}
+      if (end_by_break) return pc;
     }
+  }
 
-ret:
-    DEBUG_PRINT (("exit tablegen\n"));
-    return pc;
+  return pc;
 }
-
-
-/*
-
-  ユーザ定義のテーブルの出力
-
-  input :
-    exprptr : ユーザ定義のテーブル１行の構造体
-    tabletop : table top address
-    pc : pointing address
-    notlast : true iff this line is not last line at table
-  return :
-    next pointing address
-
-*/
-
-private address
-tablegen_sub (formula* exprptr, address tabletop, address pc, int notlast)
-{
-
-    ParseMode = PARSE_GENERATING;
-    Eval_TableTop = tabletop;
-    Eval_Count = 0;
-    Eval_PC = pc;
-
-    do {
-	extern int	yyparse (void);
-
-	lblbuf*	lptr = next (Eval_PC + 1);
-	address	nextlabel = lptr->label;
-	int	str_length;
-	boolean	pc_inc_inst;
-
-	Eval_ResultString[0] = '\0';
-	Lexptr = exprptr->expr;
-
-	DEBUG_PRINT (("parsing %s\n", Lexptr));
-	yyparse ();
-
-	/* CRID, BREAKID, EVENID(.even 出力時)以外は全て TRUE */
-	pc_inc_inst = TRUE;
-
-	switch (exprptr->id) {
-	case LONGSIZE:
-	    tablegen_dc (nextlabel, lptr, PSEUDO DC_L, 4);
-	    break;
-	case WORDSIZE:
-	    tablegen_dc (nextlabel, lptr, PSEUDO DC_W, 2);
-	    break;
-	case BYTESIZE:
-	    output_opecode (PSEUDO DC_B);
-	    outputa (Eval_ResultString);
-	    newline (Eval_PC);
-	    Eval_PC++;
-	    break;
-
-	case SINGLESIZE:
-	    tablegen_dc (nextlabel, lptr, PSEUDO DC_S, 4);
-	    break;
-	case DOUBLESIZE:
-	    tablegen_dc (nextlabel, lptr, PSEUDO DC_D, 8);
-	    break;
-	case EXTENDSIZE:
-	    tablegen_dc (nextlabel, lptr, PSEUDO DC_X, 12);
-	    break;
-	case PACKEDSIZE:
-	    tablegen_dc (nextlabel, lptr, PSEUDO DC_P, 12);
-	    break;
-
-#if 0
-	case LONGID:
-	    if (nextlabel < Eval_PC + Eval_Bytes*4)
-		tablegen_label (Eval_PC, Eval_PC + Eval_Bytes * 4, lptr);
-	    else
-		datagen (Eval_PC, Eval_PC + Eval_Bytes * 4, LONGSIZE);
-	    Eval_PC += Eval_Bytes * 4;
-	    break;
-
-	case WORDID:
-	    if (nextlabel < Eval_PC + Eval_Bytes * 2)
-		tablegen_label (Eval_PC, Eval_PC + Eval_Bytes * 2, lptr);
-	    else
-		datagen (Eval_PC, Eval_PC + Eval_Bytes * 2, WORDSIZE);
-	    Eval_PC += Eval_Bytes * 2;
-	    break;
-#endif
-	case BYTEID:
-	    if (nextlabel < Eval_PC + Eval_Bytes)
-		tablegen_label (Eval_PC, Eval_PC + Eval_Bytes, lptr);
-	    else
-		datagen (Eval_PC, Eval_PC + Eval_Bytes, BYTESIZE);
-	    Eval_PC += Eval_Bytes;
-	    break;
-	case ASCIIID:
-	    if (nextlabel < Eval_PC + Eval_Bytes)
-		tablegen_label (Eval_PC, Eval_PC + Eval_Bytes, lptr);
-	    else
-		strgen (Eval_PC, Eval_PC + Eval_Bytes);
-	    Eval_PC += Eval_Bytes;
-	    break;
-	case ASCIIZID:
-	    str_length = strlen ((char*)Eval_PC + Ofst) + 1;
-	    if (nextlabel < Eval_PC + str_length)
-		tablegen_label (Eval_PC, Eval_PC + str_length, lptr);
-	    else
-		strgen (Eval_PC, Eval_PC + str_length);
-	    Eval_PC += str_length;
-	    break;
-	case LASCIIID:
-	    str_length = *(unsigned char*) (Eval_PC + Ofst);
-	    datagen (Eval_PC, Eval_PC + 1, BYTESIZE);
-	    Eval_PC++;
-	    if (nextlabel < Eval_PC + str_length)
-		tablegen_label (Eval_PC, Eval_PC + str_length, lptr);
-	    else
-		strgen (Eval_PC, Eval_PC + str_length);
-	    Eval_PC += str_length;
-	    break;
-	case EVENID:
-	    output_opecode (PSEUDO EVEN);
-	    newline (Eval_PC);
-	    if ((int)Eval_PC & 1)
-		Eval_PC++;	/* pc_inc_inst = TRUE; */
-	    else
-		pc_inc_inst = FALSE;
-	    break;
-	case CRID:
-	    newline (Eval_PC);
-	    pc_inc_inst = FALSE;
-	    break;
-	case BREAKID:
-	    if (Eval_Break) {
-		DEBUG_PRINT (("END_BY_BREAK!(%x)\n", (unsigned int) Eval_PC))
-		end_by_break = TRUE;
-		goto tableend;
-	    }
-	    pc_inc_inst = FALSE;
-	    break;
-	default:	/* reduce warning message */
-	    break;
-	}
-
-	if ((lptr = search_label (Eval_PC)) != NULL) {
-	    DEBUG_PRINT (("THERE IS LABEL sub (%x)%x\n",
-		(unsigned int) Eval_PC, lptr->mode));
-
-#if 0	/* does not work properly */
-	    if (isTABLE (lptr->mode) && notlast)
-		eprintf ("\nEncounter another table in table(%x).\n", Eval_PC);
-#endif
-	    if (isENDTABLE (lptr->mode)) {
-		DEBUG_PRINT (("ENCOUNTER ENDTABLE(%x)", (unsigned int) Eval_PC));
-		if (notlast && (exprptr+1)->id == EVENID) {
-		    /* if .even here.... */
-		    output_opecode (PSEUDO EVEN);
-		    newline (Eval_PC);
-		    Eval_PC += (int)Eval_PC & 1;
-		}
-		end_by_break = TRUE;
-		goto tableend;
-	    } else if (pc_inc_inst)
-		/* labelout is not required at end of table */
-		label_line_out (Eval_PC, FALSE);
-	}
-    } while (--Eval_Count > 0);
-
- tableend:
-    DEBUG_PRINT (("exit tablegen_sub()\n"));
-    return Eval_PC;
-}
-
-static void
-tablegen_dc (address nextlabel, lblbuf* lptr, char* op, int size)
-{
-    if (nextlabel < Eval_PC + size)
-	tablegen_label (Eval_PC, Eval_PC + size, lptr);
-    else {
-	output_opecode (op);
-	outputa (Eval_ResultString);
-	newline (Eval_PC);
-    }
-    Eval_PC += size;
-}
-
 
 /*
 
@@ -1813,35 +1167,28 @@ tablegen_dc (address nextlabel, lblbuf* lptr, char* op, int size)
     lptr : テーブル中のラベル
 
 */
-private void
-tablegen_label (address pc, address pcend, lblbuf* lptr)
-{
-    address nlabel = lptr->label;
-    lblmode nmode = lptr->mode;
+static void tablegen_label(address pc, address pcend, lblbuf* lptr,
+                           int sectType) {
+  address nlabel = lptr->label;
+  lblmode nmode = lptr->mode;
 
-    DEBUG_PRINT (("tablegen_label(%x,%x,%x)\n", (unsigned int)pc,
-			(unsigned int) pcend, (unsigned int) nlabel));
+  pc = datagen(pc, nlabel, lblmodeOpesize(nmode));
+  while (pc < pcend) {
+    lblmode mode = nmode;
 
-    pc = datagen (pc, nlabel, nmode & 0xff);
-    while (pc < pcend) {
-	lblmode mode = nmode;
+    lptr = next(pc + 1);
+    while (lptr->shift) lptr = Next(lptr);
 
-	lptr = next (pc + 1);
-	while (lptr->shift)
-	    lptr = Next (lptr);
+    nlabel = lptr->label;
+    nmode = lptr->mode;
 
-	nlabel = lptr->label;
-	nmode = lptr->mode;
-
-	label_line_out (pc, mode);
-	pc = isPROLABEL (mode) ? textgen (pc, min (nlabel, pcend))
-			       : datagen (pc, min (nlabel, pcend), mode & 0xff);
-    }
-
-    DEBUG_PRINT (("exit tablegen_label\n"));
+    label_line_out(pc, mode, sectType, FALSE,
+                   isPROLABEL(mode) ? LINETYPE_TEXT : LINETYPE_DATA);
+    pc = isPROLABEL(mode)
+             ? textgen(pc, MIN(nlabel, pcend))
+             : datagen(pc, MIN(nlabel, pcend), lblmodeOpesize(mode));
+  }
 }
-
-
 
 /*
 
@@ -1852,114 +1199,93 @@ tablegen_label (address pc, address pcend, lblbuf* lptr)
     buffer : pointer to output buffer
 
 */
-#define IMM_B1 (*(unsigned char*) (store + 1))
-#define IMM_W1 (*(unsigned char*) (store + 0))
-#define IMM_W2 (*(unsigned char*) (store + 1))
-#define IMM_L1 (*(unsigned char*) (store + 0))
-#define IMM_L2 (*(unsigned char*) (store + 1))
-#define IMM_L3 (*(unsigned char*) (store + 2))
-#define IMM_L4 (*(unsigned char*) (store + 3))
+#define IMM_B1 (*(UBYTE*)(store + 1))
+#define IMM_W1 (*(UBYTE*)(store + 0))
+#define IMM_W2 (*(UBYTE*)(store + 1))
+#define IMM_L1 (*(UBYTE*)(store + 0))
+#define IMM_L2 (*(UBYTE*)(store + 1))
+#define IMM_L3 (*(UBYTE*)(store + 2))
+#define IMM_L4 (*(UBYTE*)(store + 3))
 
-private void
-byteout_for_moption (address pc, char* buffer, int size)
-{
-    char* p;
-    address store = pc + Ofst;
+static void byteout_for_moption(disasm* code, char* buffer) {
+  char* p;
+  codeptr store = code->pc + Dis.Ofst;
+  opesize size = code->size;
 
-    /* moveq.l は即値の位置が違う */
-    if (size == LONGSIZE && (*(char*) store) >= 0x70)
-	size = BYTESIZE;
-    else
-	store += 2;
+  if (code->size2 == UNKNOWN)
+    size = BYTESIZE;  // MOVEQ.Lは命令コードの下位にバイト値がある
+  else
+    store += 2;
 
-    /* 表示可能な文字か調べる */
-    if (size == BYTESIZE) {
-	if (!isprint (IMM_B1))
-	    return;
-    }
-    else if (size == WORDSIZE) {
-	/* 上位バイトは表示可能もしくは 0 */
-	if (IMM_W1 && !isprint (IMM_W1))
-	    return;
+  /* 表示可能な文字か調べる */
+  if (size == BYTESIZE) {
+    if (!isprint(IMM_B1)) return;
+  } else if (size == WORDSIZE) {
+    /* 上位バイトは表示可能もしくは 0 */
+    if (IMM_W1 && !isprint(IMM_W1)) return;
 
-	/* 下位バイトは必ず表示可能 */
-	if (!isprint (IMM_W2))
-	    return;
-    }
-    else if (size == LONGSIZE) {
-	/* 最上位バイトは表示可能もしくは 0 */
-	if (IMM_L1 && !isprint (IMM_L1))
-	    return;
+    /* 下位バイトは必ず表示可能 */
+    if (!isprint(IMM_W2)) return;
+  } else if (size == LONGSIZE) {
+    /* 最上位バイトは表示可能もしくは 0 */
+    if (IMM_L1 && !isprint(IMM_L1)) return;
 
-	/* 真ん中の二バイトは必ず表示可能 */
-	if (!isprint (IMM_L2) || !isprint (IMM_L3))
-	    return;
+    /* 真ん中の二バイトは必ず表示可能 */
+    if (!isprint(IMM_L2) || !isprint(IMM_L3)) return;
 
-	/* 最下位バイトは表示可能もしくは 0 */
-	if (IMM_L4 && !isprint (IMM_L4))
-	    return;
-    }
-    else {	/* pack, unpk */
+    /* 最下位バイトは表示可能もしくは 0 */
+    if (IMM_L4 && !isprint(IMM_L4)) return;
+  } else { /* pack, unpk */
 #ifdef PACK_UNPK_LOOSE
-	/* 上位バイトは表示可能もしくは 0 */
-	if (IMM_W1 && !isprint (IMM_W1))
-	    return;
+    /* 上位バイトは表示可能もしくは 0 */
+    if (IMM_W1 && !isprint(IMM_W1)) return;
 
-	/* 下位バイトは表示可能もしくは 0 */
-	if (IMM_W2 && !isprint (IMM_W2))
-	    reutrn;
+    /* 下位バイトは表示可能もしくは 0 */
+    if (IMM_W2 && !isprint(IMM_W2)) reutrn;
 
-	/* ただし両方とも 0 ではいけない */
-	if (IMM_W1 == 0 && IMM_W2 == 0)
-	    return;
+    /* ただし両方とも 0 ではいけない */
+    if (IMM_W1 == 0 && IMM_W2 == 0) return;
 #else
-	/* 二バイトとも必ず表示可能 */
-	if (!isprint (IMM_W1) || !isprint (IMM_W2))
-	    return;
+    /* 二バイトとも必ず表示可能 */
+    if (!isprint(IMM_W1) || !isprint(IMM_W2)) return;
 #endif
-    }
+  }
 
-    p = tab_out (Mtab, buffer);
-    *p++ = '\'';
+  p = writeTabAndCommentChar(buffer, Dis.Mtab);
+  *p++ = '\'';
 
-    if (size == BYTESIZE) {
-	*p++ = IMM_B1;
+  if (size == BYTESIZE) {
+    *p++ = IMM_B1;
+  } else if (size == WORDSIZE) {
+    if (IMM_W1) *p++ = IMM_W1;
+    *p++ = IMM_W2;
+  } else if (size == LONGSIZE) {
+    if (IMM_L1) *p++ = IMM_L1;
+    *p++ = IMM_L2;
+    *p++ = IMM_L3;
+    if (IMM_L4)
+      *p++ = IMM_L4;
+    else {
+      strcpy(p, "'<<8");
+      return;
     }
-    else if (size == WORDSIZE) {
-	if (IMM_W1)
-	    *p++ = IMM_W1;
-	*p++ = IMM_W2;
-    }
-    else if (size == LONGSIZE) {
-	if (IMM_L1)
-	    *p++ = IMM_L1;
-	*p++ = IMM_L2;
-	*p++ = IMM_L3;
-	if (IMM_L4)
-	    *p++ = IMM_L4;
-	else {
-	    strcpy (p, "'<<8");
-	    return;
-	}
-    }
-    else {	/* pack, unpk */
+  } else { /* pack, unpk */
 #ifdef PACK_UNPK_LOOSE
-	if (IMM_W1)
-	    *p++ = IMM_W1;
-	if (IMM_W2)
-	    *p++ = IMM_W2;
-	else {
-	    strcpy (p, "'<<8");
-	    return;
-	}
-#else
-	*p++ = IMM_W1;
-	*p++ = IMM_W2;
-#endif
+    if (IMM_W1) *p++ = IMM_W1;
+    if (IMM_W2)
+      *p++ = IMM_W2;
+    else {
+      strcpy(p, "'<<8");
+      return;
     }
+#else
+    *p++ = IMM_W1;
+    *p++ = IMM_W2;
+#endif
+  }
 
-    *p++ = '\'';
-    *p++ = '\0';
+  *p++ = '\'';
+  *p++ = '\0';
 }
 #undef IMM_B1
 #undef IMM_W
@@ -1969,8 +1295,6 @@ byteout_for_moption (address pc, char* buffer, int size)
 #undef IMM_L2
 #undef IMM_L3
 #undef IMM_L4
-
-
 
 /*
 
@@ -1982,25 +1306,18 @@ byteout_for_moption (address pc, char* buffer, int size)
     buffer : pointer to output buffer
 
 */
-extern void
-byteout_for_xoption (address pc, ULONG byte, char* buffer)
-{
-    int i;
-    char c;
-    address store = pc + Ofst;
-    char* p = tab_out (Xtab, buffer);
+static void byteout_for_xoption(address pc, ULONG byte, char* buffer) {
+  codeptr store = pc + Dis.Ofst;
+  char* p = writeTabAndCommentChar(buffer, Dis.Xtab);
+  ULONG i;
 
-    for (c = '\0', i = 0; i < byte; i += 2, store += 2) {
-	if (c)
-	    *p++ = c;		/* 二回目からはカンマが必要 */
-	*p++ = '$';
-	p = itox4_without_0supress (p, peekw (store));
-	c = ',';
-    }
+  for (i = 0; i < byte; i += 2, store += 2) {
+    *p++ = '$';
+    p = itox4_without_0supress(p, peekw(store));
+    *p++ = ',';
+  }
+  *--p = '\0';  // 最後のカンマを消す
 }
-
-
-
 
 /*
 
@@ -2012,837 +1329,220 @@ byteout_for_xoption (address pc, ULONG byte, char* buffer)
     size : data size
 
 */
-private void
-bssgen (address pc, address nlabel, opesize size)
-{
-    ULONG byte;
+static void bssgen(address pc, address nlabel, opesize size) {
+  char buf[16];
+  int bytes = MIN(nlabel, Dis.LAST) - pc;
+  SizeLength sl;
 
-    charout ('$');
-    nlabel = (address) min ((ULONG) nlabel, (ULONG) Last);
-    byte = nlabel - pc;
+  charout('$');
 
-    if ((LONG)nlabel >= 0) {
-	if (size == WORDSIZE && byte == 2)
-	    output_opecode (PSEUDO DS_W "1");
-	else if (size == LONGSIZE && byte == 4)
-	    output_opecode (PSEUDO DS_L "1");
-	else {
-	    output_opecode (PSEUDO DS_B);
-	    outputfa ("%d", byte);
-	}
-	newline (pc);
-    }
+  sl = getSizeLength(getSizeBytes(size), bytes);
+  snprintf(buf, sizeof(buf), "%d", sl.length);
+  outputData2(pc, OpString.ds[sl.size], buf);
 }
 
-
-/*
-
-  ラベルの付け替え
-
-  input :
-    code : disassembled opecode
-    operand : operand ( op1,op2,op3 or op4 )
-
-  return :
-    TRUE if output is 'label[+-]??' style ( used to avoid as.x bug )
-    (注)as.xには対応しなくなった為、返値は削除.
-
-	Ablong		PCDISP		IMMED	    PCIDX
-    0	(label)		(label,pc)	#label	    (label,pc,ix)
-    1	(label-$num)	(label-$num,pc)	#label-$num (label-$num,pc,ix)
-    2	(label+$num)	(label+$num,pc)	#label+$num (label+$num,pc,ix)
-
-(odはアドレス依存かつexodが4の時だけlabel化する)
-	PCIDXB		    PCPOSTIDX		    PCPREIDX
-	(label,pc,ix)	    ([label,pc],ix,label)   ([label,pc,ix],label)
-
-(bd,odはアドレス依存かつexbd,exodがそれぞれ4の時だけlabel化)
-	AregIDXB	    AregPOSTIDX		    AregPREIDX
-	(label,an,ix)	    ([label,an],ix,label)   ([label,an,ix],label)
-
-*/
-private void
-labelchange (disasm* code, operand* op)
-{
-    address arg1;
-    LONG shift;
-
-    if (op->opval != (address)-1 &&
-	(op->labelchange1 ||
-	 ((op->ea == AbLong || ((op->ea == IMMED) && (code->size2 == LONGSIZE)))
-	   && INPROG (op->opval, op->eaadrs))
-	)
-       ) {
-	char buff[64];
-	char* base = buff;
-	char* ext_operand = NULL;
-
-	switch (op->ea) {
-	default:
-	case IMMED:
-	    break;
-
-	case AbLong:
-	    ext_operand = ")";
-	    break;
-
-	case AregPOSTIDX:
-	case AregPREIDX:
-	    if (!INPROG (op->opval, op->eaadrs))
-		goto bd_skip;
-	    ext_operand = strpbrk (op->operand, "],");
-	    break;
-
-	case PCDISP:
-	    if ((char)op->labelchange1 < 0)
-		break;		/* bsr label 等は括弧なし */
-	    /* fall through */
-	case AregIDXB:
-	case PCIDX:
-	    ext_operand = strchr (op->operand, ',');
-	    break;
-	case PCIDXB:
-	    ext_operand = strchr (op->operand, ',');
-	    goto check_size;
-	case PCPOSTIDX:
-	case PCPREIDX:
-	    ext_operand = strpbrk (op->operand, "],");
-check_size: if (ext_operand[-2] == (char)'.')
-		ext_operand -= 2;	/* サイズ付きなら付け加える */
-	    break;
-	}
-
-	if ((LONG)op->opval < (LONG)BeginTEXT) {
-	    arg1 = BeginTEXT;
-	    shift = (LONG)op->opval - (LONG)BeginTEXT;
-	} else if ((ULONG)op->opval > (ULONG)Last) {
-	    arg1 = Last;
-	    shift = (ULONG)op->opval - (ULONG)Last;
-	} else {
-	    lblbuf* label_ptr = search_label (op->opval);
-
-	    if (!label_ptr)
-		/* ここで opval より手前のラベルを探して */
-		/* ±shift 形式にするべきか??		 */
-		return;
-	    shift = label_ptr->shift;
-	    arg1 = op->opval - shift;
-	}
-
-	switch (op->ea) {
-	default:
-	    break;
-	case IMMED:
-	    *base++ = '#';
-	    break;
-	case PCDISP:
-	    if ((char)op->labelchange1 < 0)
-		break;		/* bsr label 等は括弧なし */
-	    /* fall through */
-	case AbLong:
-	case PCIDX:
-	case AregIDXB:
-	case PCIDXB:
-	    *base++ = '(';
-	    break;
-	case AregPOSTIDX:
-	case AregPREIDX:
-	case PCPOSTIDX:
-	case PCPREIDX:
-	    *base++ = '(';
-	    *base++ = '[';
-	    break;
-	}
-
-	base = make_symbol (base, arg1, shift);
-
-	if (ext_operand)
-	    strcpy (base, ext_operand);
-
-	strcpy (op->operand, buff);
-    }
-
-bd_skip:
-
-
-/* アウタディスプレースメント用 */
-    if (op->labelchange2 && op->opval2 != (address)-1
-	&& INPROG (op->opval2, op->eaadrs2))
-    {
-	char* ptr;
-
-	if ((LONG)op->opval2 < (LONG)BeginTEXT) {
-	    arg1 = BeginTEXT;
-	    shift = (LONG)op->opval2 - (LONG)BeginTEXT;
-	} else if ((ULONG)op->opval2 > (ULONG)Last) {
-	    arg1 = Last;
-	    shift = (ULONG)op->opval2 - (ULONG)Last;
-	} else {
-	    lblbuf* label_ptr = search_label (op->opval2);
-
-	    if (!label_ptr)
-		return;
-	    shift = label_ptr->shift;
-	    arg1 = op->opval2 - shift;
-	}
-
-	ptr = make_symbol (strrchr (op->operand, ',') + 1, arg1, shift);
-	*ptr++ = ')';
-	*ptr++ = '\0';
-    }
-}
-
-
-/* ラベル定義行のコロン出力 */
-static INLINE void
-add_colon (char* ptr, int xdef)
-{
-    if (SymbolColonNum) {
-	*ptr++ = ':';
-	/* -C3 又は、-C2 かつ外部定義なら :: */
-	if (SymbolColonNum > 2 || (SymbolColonNum == 2 && xdef))
-	    *ptr++ = ':';
-    }
-    *ptr = '\0';
-}
-
-/*
-
-  ラベル定義行出力
-
-  input :
-    adrs : label address
-    mode : label mode
-
-  シンボル名が定義されていれば「シンボル名::」、未定義なら「Lxxxxxx:」
-  などの形式で出力する(コロンの数やラベル先頭文字はオプションの状態で変わる).
-  シンボル属性によっては全く出力されないこともある.
-
-*/
-private void
-label_line_out (address adrs, lblmode mode)
-{
-    char  buf[128];
-    symbol*  symbolptr;
-
-    if (isHIDDEN (mode))
-	return;
-
-    if (Exist_symbol && (symbolptr = symbol_search (adrs))) {
-	symlist* sym = &symbolptr->first;
-	do {
-	    if (sym->type == SectionType || (sym->type == 0)) {
-		add_colon (strend (strcpy (buf, sym->sym)), sym->type);
-		outputa (buf);
-		newline (adrs);
-	    }
-	    sym = sym->next;
-	} while (sym);
-	return;
-    }
-
-    /* シンボル名が無ければ Lxxxxxx の形式で出力する */
-    buf[0] = Label_first_char;
-    add_colon (itox6_without_0supress (&buf[1], (ULONG)adrs), 0);
-    outputa (buf);
-    newline (adrs);
-}
-
-private void
-label_line_out_last (address adrs, lblmode mode)
-{
-    char  buf[128];
-    symbol*  symbolptr;
-
-    if (isHIDDEN (mode))
-	return;
-
-    if (Exist_symbol && (symbolptr = symbol_search (adrs))) {
-	symlist* sym = &symbolptr->first;
-	do {
-	    /* SectionType == 0 のシンボル名は出力しないこと.	*/
-	    /* それは次のセクションの先頭で出力する.		*/
-	    if (sym->type == SectionType) {
-		add_colon (strend (strcpy (buf, sym->sym)), sym->type);
-		outputa (buf);
-		newline (adrs);
-	    }
-	    sym = sym->next;
-	} while (sym);
-	return;
-    }
-
-    /* ソースコード最後のラベルは絶対に出力する必要がある. */
-    if (SectionType == 0)
-	label_line_out (adrs, mode);
-
-}
-
-
-
-/*
-
-  オペランドとしてのラベル出力
-
-  input :
-    adrs : label address
-    mode : label mode
-
-  .end及び.dc.l疑似命令のオペランドを作成する為に呼ばれる.
-  コロンは付かない.
-  +-shtが付く可能性がある.
-
-*/
-private void
-label_op_out (address adrs)
-{
-    char buf[128];
-
-    make_proper_symbol (buf, adrs);
-    outputa (buf);
-}
-
-
-/*
-
-  ラベルシンボルの生成
-
-  input :
-    buff : buffer of label symbol
-    adrs : address
-
-  最も近いシンボルを探し、同じ値がなければshift値を計算して
-  make_symbol()を呼び出す.
-
-*/
-extern void
-make_proper_symbol (char* buf, address adrs)
-{
-    address arg1;
-    LONG shift;
-
-    if ((LONG)adrs < (LONG)BeginTEXT) {		/* must be LONG, not ULONG */
-	arg1 = BeginTEXT;
-	shift = (LONG)adrs - (ULONG)BeginTEXT;
-    } else if ((ULONG)adrs > (ULONG)Last) {
-	arg1 = Last;
-	shift = (ULONG)adrs - (ULONG)Last;
-    } else {
-	lblbuf* lblptr = search_label (adrs);
-
-	if (lblptr && (shift = lblptr->shift) != 0)
-	    arg1 = adrs - shift;
-	else {
-	    arg1 = adrs;
-	    shift = 0;
-	}
-    }
-    make_symbol (buf, arg1, shift);
-}
-
-
-/*
-
-  シンボルを生成する
-
-  input :
-    ptr : symbol buffer
-    adrs : address
-    sft : shift count
-
-  return :
-    pointer to generated symbol' tail
-
-  シンボルテーブルがあれば、adrs はシンボルに置換され、なければ L?????? 形式となる
-  sft != 0 ならその後に +sft or -sft がつく
-
-  ラベル定義行の生成にはlabel_line_out()を使うこと.
-
-*/
-extern char*
-make_symbol (char* ptr, address adrs, LONG sft)
-{
-    symbol* symbol_ptr;
-
-    if (Exist_symbol && (symbol_ptr = symbol_search (adrs)) != NULL) {
-	strcpy (ptr, symbol_ptr->first.sym);
-	ptr = strend (ptr);
-    } else {
-	*ptr++ = Label_first_char;
-	ptr = itox6_without_0supress (ptr, (ULONG)adrs);
-    }
-
-    if (sft == 0)
-	return ptr;
-
-    if (sft > 0)
-	*ptr++ = '+';
-    else {
-	*ptr++ = '-';
-	sft = -sft;
-    }
-    return itox6d (ptr, sft);
-}
-
-
-private const char*
-ctimez (time_t* clock)
-{
-    char* p = ctime (clock);
-    char* n;
-
-    if (p == NULL)
-	return "(invalid time)";
-
-    n = strchr (p, '\n');
-    if (n)
-	*n = '\0';
-    return p;
-}
-
-
-static INLINE FILE*
-open_header_file (void)
-{
-    FILE* fp = NULL;
-    const char* fname = Header_filename ? : getenv ("dis_header");
-
-    if (fname && *fname && (fp = fopen (fname, "rt")) == NULL) {
-#if 0
-	eprintf ("\n"
-		 "ヘッダ記述ファイル \"%s\" がオープン出来ません.\n"
-		 "標準の内容を出力します.\n", file);
-#else
-	eprintf ("\nヘッダ記述ファイルがオープン出来ません.\n");
-#endif
-    }
-
-    return fp;
-}
-
-
-/*
-
-  ヘッダを書く
-
-  input :
-    filename	: execute filename
-    filedate	: execute file' time stamp
-    argv0	: same to argv[0] given to main()
-    comline	: commandline
-
-*/
-private void
-makeheader (char* filename, time_t filedate, char* argv0, char* comline)
-{
-    char  buffer[256];
-    char* envptr;
-    char  cc = CommentChar;
-
-    static char	op_include[]	= PSEUDO INCLUDE;
-    static char	op_cpu[]	= PSEUDO CPU;
-    static char	op_equ[]	= PSEUDO EQU;
-    static char	op_xdef[]	= PSEUDO XDEF;
-
-    if (option_U) {
-	strupr (op_include);
-	strupr (op_cpu);
-	strupr (op_equ);
-	strupr (op_xdef);
-    }
-
-    outputf ("%c=============================================" CR, cc);
-    outputf ("%c  Filename %s" CR, cc, filename);
-    outputf ("%c  Time Stamp %s" CR, cc, ctimez (&filedate));
-    outputf ("%c" CR, cc);
-#ifndef OSKDIS
-    outputf ("%c  Base address %06x" CR, cc, Head.base);
-    outputf ("%c  Exec address %06x" CR, cc, Head.exec);
-    outputf ("%c  Text size    %06x byte(s)" CR, cc, Head.text);
-    outputf ("%c  Data size    %06x byte(s)" CR, cc, Head.data);
-    outputf ("%c  Bss  size    %06x byte(s)" CR, cc, Head.bss);
-#endif	/* !OSKDIS */
-    outputf ("%c  %d Labels" CR, cc, get_Labelnum ());
-    {
-	time_t	t = time (NULL);
-	outputf ("%c  Code Generate date %s" CR, cc, ctimez (&t));
-    }
-    if ((envptr = getenv (DIS_ENVNAME)) != NULL)
-	outputf ("%c  Environment %s" CR, cc, envptr);
-
-    outputf ("%c  Commandline %s %s" CR, cc, argv0, comline);
-    outputf ("%c          DIS version %s" CR, cc, Version);
-
-#ifdef	OSKDIS
-    outputf ("%c********************************************" CR, cc);
-
-    outputf ("%c  Revision    %04x"	CR, cc, HeadOSK.sysrev);
-    outputf ("%c  Module Size %d bytes" CR, cc, HeadOSK.size);
-    outputf ("%c  Owner       %d.%d"	CR, cc, HeadOSK.owner >> 16,
-						HeadOSK.owner & 0xffff);
-    outputf ("%c  Name Offset %08x" CR, cc, HeadOSK.name);
-    outputf ("%c  Permit      %04x" CR, cc, HeadOSK.accs);
-    outputf ("%c  Type/Lang   %04x" CR, cc, HeadOSK.type);
-    outputf ("%c  Attribute   %04x" CR, cc, HeadOSK.attr);
-    outputf ("%c  Edition     %d"   CR, cc, HeadOSK.edition);
-    outputf ("%c  Entry       %08x" CR, cc, HeadOSK.exec);
-    outputf ("%c  Excpt       %08x" CR, cc, HeadOSK.excpt);
-
-    if ((HeadOSK.type & 0x0F00) == 0x0e00 ||	/* Driver   */
-	(HeadOSK.type & 0x0F00) == 0x0b00 ||	/* Trap     */
-	(HeadOSK.type & 0x0F00) == 0x0100) {	/* Program  */
-	outputf ("%c  Memory Size %d" CR, cc, HeadOSK.mem);
-    }
-    if ((HeadOSK.type & 0x0F00) == 0x0100 ||	/* Program  */
-	(HeadOSK.type & 0x0F00) == 0x0b00) {	/* Trap     */
-	outputf ("%c  Stack Size  %d"   CR, cc, HeadOSK.stack);
-	outputf ("%c  M$IData     %08x" CR, cc, HeadOSK.idata);
-	outputf ("%c  M$IRefs     %08x" CR, cc, HeadOSK.irefs);
-    }
-    if ((HeadOSK.type & 0x0F00) == 0x0b00) {	/* Trap     */
-	outputf ("%c  M$Init      %08x" CR, cc, HeadOSK.init);
-	outputf ("%c  M$Term      %08x" CR, cc, HeadOSK.term);
-    }
-
-    outputf ("%c********************************************" CR
-	     "%c" CR, cc, cc);
-    strcpy (buffer, Top - (ULONG)Head.base + HeadOSK.name);	/* モジュール名 */
-    switch (HeadOSK.type & 0x0f00) {
-	case 0x0100:	/* Program */
-	case 0x0b00:	/* Trap    */
-	    outputf ("\tpsect\t%s,$%04x,$%04x,%d,%d,L%06x",
-			buffer, HeadOSK.type, HeadOSK.attr,
-			HeadOSK.edition, HeadOSK.stack, HeadOSK.exec);
-	    if (HeadOSK.excpt)
-		outputf (",L%06x", HeadOSK.excpt);
-	    break;
-	case 0x0200:	/* Subroutine */
-	case 0x0c00:	/* System     */
-	case 0x0d00:	/* FileMan    */
-	case 0x0e00:	/* Driver     */
-	    outputf ("\tpsect\t%s,$%04x,$%04x,%d,%d,L%06x",
-			buffer, HeadOSK.type, HeadOSK.attr,
-			HeadOSK.edition, 0, HeadOSK.exec);
-	    if (HeadOSK.excpt)
-		outputf (",L%06x", HeadOSK.excpt);
-	    break;
-    }
-#else
-    outputf ("%c=============================================" CR CR, cc);
-
-    /* dis_header の出力 */
-    {
-	FILE* fp = open_header_file ();
-
-	if (fp) {
-	    while (fgets (buffer, sizeof buffer, fp)) {
-		char* p = strchr (buffer, '\n');
-		if (p)
-		    *p = '\0';
-		outputf ("%s" CR, buffer);
-	    }
-	    fclose (fp);
-	}
-	else {
-	    if (Doscall_mac_path)
-		outputf ("%s%s" CR, op_include, Doscall_mac_path);
-	    if (Iocscall_mac_path)
-		outputf ("%s%s" CR, op_include, Iocscall_mac_path);
-	    if (Fefunc_mac_path)
-		outputf ("%s%s" CR, op_include, Fefunc_mac_path);
-	    if (Sxcall_mac_path)
-		outputf ("%s%s" CR, op_include, Sxcall_mac_path);
-	}
-	outputf (CR);
-    }
-#endif	/* OSKDIS */
-
-#ifndef	OSKDIS
-    {	/* 外部定義シンボルの出力 */
-	char* colon = (SymbolColonNum == 0) ? ""
-		    : (SymbolColonNum == 1) ? ":" : "::";
-	if (output_symbol_table (op_equ, op_xdef, colon))
-	    outputf (CR);
-    }
-#endif	/* !OSKDIS */
-
-    /* .cpu 疑似命令の出力 */
-    outputf ("%s%s" CR, op_cpu, mputype_numstr (Current_Mputype));
-
-}
-
-
-private char*
-mputype_numstr (mputypes m)
-{
-    if (m & M000) return "68000";
-    if (m & M010) return "68010";
-    if (m & M020) return "68020";
-    if (m & M030) return "68030";
-    if (m & M040) return "68040";
- /* if (m & M060) */
-		  return "68060";
-}
-
-
-/*
-
-  オペコードの出力
-
-  input :
-    ptr : buffer of opecode ( like "move.l",0 )
-
-*/
-private void
-output_opecode (char* ptr)
-{
-    char buf[32];
-
-    if (option_U)
-	ptr = strupr (strcpy (buf, ptr));
-    outputa (ptr);
-}
-
-
-
-/************************************************/
-/*	    LIBC/XC 以外で使用する関数		*/
-/************************************************/
-
-#ifdef NEED_MAKE_CMDLINE
-private char*
-make_cmdline (char** argv)
-{
-    char* ptr = Malloc (1);
-
-    for (*ptr = '\0'; *argv; argv++) {
-	ptr = Realloc (ptr, strlen (ptr) + strlen (*argv) + 2);
-	strcat (strcat (ptr, " "), *argv);
-    }
-
-    return ptr;
-}
+// ラベル化できる場合はラベルを探してTRUEを返す
+static boolean getLabel(operand* op, SymbolLabelFormula* slfml) {
+  if (op->labelchange1 == LABELCHANGE_DISALLOW) return FALSE;
+
+  if (op->labelchange1 == LABELCHANGE_DEPEND) {
+    if (!INPROG(op->opval, op->eaadrs)) return FALSE;
+  }
+
+#ifdef DEBUG_NO_LABELCHANGE
+  if (op->labelchange1 != LABELCHANGE_LABEL_ONLY) return FALSE;
 #endif
 
-
-/************************************************/
-/*		以下は OSKDIS 用の関数		*/
-/************************************************/
-
-#ifdef	OSKDIS
-
-private void
-oskdis_gen (lblbuf* lptr)
-{
-    lblbuf* lptr = gen (CR, BeginBSS, next (BeginTEXT), XDEF_BSS, 0, -1);
-    lblmode nmode = lptr->mode;
-    address pc = lptr->label;
-
-    output_opecode (CR "\tvsect" CR CR);
-    while (pc <= BeginDATA) {
-	lblmode  mode = nmode;
-	address  nlabel;
-
-	lptr   = Next (lptr);
-	nlabel = lptr->label;
-	nmode  = lptr->mode;
-
-	if (pc == BeginDATA) break; /* 泥縄 */
-
-	vlabelout (pc, mode);
-	bssgen (pc, nlabel, mode & 0xff);
-	pc = nlabel;
-    }
-
-    DEBUG_PRINT (("\nTEST=%08x, DATA=%08x, BSS=%08x, LAST=%08x\n",
-			BeginTEXT, BeginDATA, BeginBSS, Last));
-
-    lptr = next (BeginDATA);	/* vsect の初期化データ領域をポイント */
-    switch (HeadOSK.type & 0x0f00) {
-	case 0x0100:		/* Program  */
-	case 0x0b00:		/* Trap     */
-	    {
-		ULONG* idatsiz = Top - (ULONG) Head.base + (ULONG) HeadOSK.idata + 4;
-		lptr = idatagen (BeginDATA + *idatsiz, lptr);
-	    }			/* vsect の初期化データを出力 */
-	    break;
-	default:
-	    lptr = idatagen (Last, lptr);
-	    break;
-    }
-    pc = lptr->label;
-    DEBUG_PRINT (("pc=0x%.8x, last=0x%.8x\n", pc, Last));
-
-    output_opecode (CR "\tends" CR);	/* end vsect */
-
-    if (pc < Last) {
-	output_opecode (CR "\tvsect\tremote" CR CR);
-	while (pc <= Last) {
-	    lblmode  mode = nmode;
-	    address  nlabel;
-
-	    lptr   = Next (lptr);
-	    nlabel = lptr->label;
-	    nmode  = lptr->mode;
-
-	    if (pc == Last) break;	/* 泥縄 */
-
-	    vlabelout (pc, mode);
-	    bssgen (pc, nlabel, mode & 0xff);
-	    pc = nlabel;
-	}
-	output_opecode (CR "\tends" CR);	/* end vsect remote */
-    }
-
-    output_opecode (CR "\tends" CR);	/* end psect */
-    output_opecode (CR "\tend" CR);
+  makeSymLabFormula(slfml, op->opval);
+  return TRUE;
 }
 
-/*
-
-　初期化データを出力する(下請け)
-
-*/
-private address
-idatagen_sub (address pc, address wkpc, address pcend, lblmode mode)
-{
-
-    while (pc < pcend) {
-	ULONG byte = pcend - pc;
-
-	switch (mode & 0xff) {
-	case LONGSIZE:
-	    if (byte != 4)
-		goto XX;
-	    if (mode & CODEPTR) {
-		ULONG x = peekl (wkpc);
-		char* s = (x == 0) ?		PSEUDO DC_L "_btext\t* $%08x" CR
-			: (x == HeadOSK.name) ? PSEUDO DC_L "_bname\t* $%08x" CR
-					      : PSEUDO DC_L "L%06x" CR;
-		outputf (s, x);
-	    } else if (mode & DATAPTR)
-		outputf (PSEUDO DC_L "L%06x" CR, peekl (wkpc) + BeginBSS);
-	    else
-		outputf (PSEUDO DC_L "$%08x" CR, peekl (wkpc));
-	    break;
-
-	case WORDSIZE:
-	    if (byte != 2)
-		goto XX;
-	    outputf (PSEUDO DC_W "$%04x" CR, peekw (wkpc));
-	    break;
-
-	default:
-XX:	    byteout ((ULONG)wkpc - (ULONG)Top + (ULONG)Head.base, byte, FALSE);
-	}
-	pc += byte;
-	wkpc += byte;
-    }
-    return wkpc;
+// 文字列の直前にベースディスプレースメントのサイズ(".l")があればそのアドレスを返す
+//   なければ引数の文字列をそのまま返す
+static char* rewindToBDSize(operand* op, char* s) {
+  return ((op->flags & OPFLAG_PC_RELATIVE) && s[-2] == '.') ? s - 2 : s;
 }
 
-/*
+// オペランド内のアドレスをラベル化してバッファにコピーする
+//   書き込んだ文字列の末尾('\0'は書き込まない)を返す。
+static char* operandToLabel(char* p, operand* op) {
+  SymbolLabelFormula slfml;
 
-  初期化データを出力する
+  switch (op->ea) {
+    default:
+      return strcpy2(p, op->operand);
 
-  input:
-    end     : block end address
-    lptr    : lblbuf* ( contains block start address )
+    case AbLong:  // ($xxxx_xxxx) -> (label)
+      if (!getLabel(op, &slfml)) return strcpy2(p, op->operand);
 
-*/
-private lblbuf*
-idatagen (address end, lblbuf* lptr)
-{
-    address pc = lptr->label;
-    address wkpc = Top - (ULONG) Head.base + (ULONG) HeadOSK.idata + 8;
+      *p++ = '(';
+      p = catSlfml(p, &slfml);
+      *p++ = ')';
+      return p;
 
-    newline (pc);
+    case PCDISP:  // (d16,pc) -> (label,pc)
+      if (!getLabel(op, &slfml)) return strcpy2(p, op->operand);
 
-    while (pc < end) {
-	lblmode mode = lptr->mode;
+      if (op->labelchange1 == LABELCHANGE_LABEL_ONLY) {
+        // Bcc/DBccなどはラベルだけの表記 $xxxx_xxxx -> label
+        return catSlfml(p, &slfml);
+      }
+      *p++ = '(';
+      p = catSlfml(p, &slfml);
+      return strcpy2(p, strchr(op->operand, ','));
 
-	do {
-	    lptr = Next (lptr);
-	} while (lptr->shift);
+    case PCIDX:  // (d8,pc,ix) -> (label,pc,ix)
+      if (!getLabel(op, &slfml)) return strcpy2(p, op->operand);
 
-	label_line_out (pc, mode);
+      *p++ = '(';
+      p = catSlfml(p, &slfml);
+      return strcpy2(p, strchr(op->operand, ','));
 
-	DEBUG_PRINT (("PC=%08x, NEXT=%08x, MODE=%08x\n", pc, lptr->label, mode));
+    case IMMED:  // #$xxxx_xxxx -> #label
+      if (!getLabel(op, &slfml)) return strcpy2(p, op->operand);
 
-	wkpc = idatagen_sub (pc, wkpc, lptr->label, mode);
-	pc = nlabel;
+      *p++ = '#';
+      return catSlfml(p, &slfml);
+
+    case AregDISP:  // (d16,a6) -> (label,a6)
+    {
+      char* (*d16AnToLabel)(char* p, operand* op) = Dis.actions->d16AnToLabel;
+      if (d16AnToLabel != NULL)
+        return d16AnToLabel(p, op);
+      else
+        return strcpy2(p, op->operand);
     }
 
-    return lptr;
+    case AregIDXB:  // ($xxxx_xxxx,an,ix) -> (label,an,ix)
+      if (!getLabel(op, &slfml)) return strcpy2(p, op->operand);
+
+      *p++ = '(';
+      p = catSlfml(p, &slfml);
+      return strcpy2(p, strchr(op->operand, ','));
+
+    case AregPOSTIDX:  // ([$xxxx_xxxx,an],ix,od) -> ([label,an],ix,od)
+    case AregPREIDX:   // ([$xxxx_xxxx,an,ix],od) -> ([label,an,ix],od)
+      // ベースディスプレースメントはロングのみ
+      if (!getLabel(op, &slfml)) {
+        p = strcpy2(p, op->operand);
+      } else {
+        *p++ = '(';
+        *p++ = '[';
+        p = catSlfml(p, &slfml);
+        p = strcpy2(p, strpbrk(op->operand, "],"));
+      }
+      break;
+
+    case PCIDXB:  // (bd,pc,ix) -> (label,pc,ix)
+      if (!getLabel(op, &slfml)) return strcpy2(p, op->operand);
+
+      *p++ = '(';
+      p = catSlfml(p, &slfml);
+      // ワード範囲のbd.lに対する最適化抑制のためのサイズ".l"は残す
+      return strcpy2(p, rewindToBDSize(op, strchr(op->operand, ',')));
+
+    case PCPOSTIDX:  // ([bd,pc],ix,od) -> ([label,pc],ix,od)
+    case PCPREIDX:   // ([bd,pc,ix],od) -> ([label,pc,ix],od)
+      // ベースディスプレースメントはワード(PC相対)、ロング(PC相対)、
+      // ロング(リロケート情報あり、zpc)のパターンがある
+      if (!getLabel(op, &slfml)) {
+        p = strcpy2(p, op->operand);
+      } else {
+        *p++ = '(';
+        *p++ = '[';
+        p = catSlfml(p, &slfml);
+        // ワード範囲のbd.lに対する最適化抑制のためのサイズ".l"は残す
+        p = strcpy2(p, rewindToBDSize(op, strpbrk(op->operand, "],")));
+      }
+      break;
+  }
+
+  // アウターディスプレースメント
+  if (op->exod == 4 && INPROG(op->opval2, op->eaadrs2)) {
+    makeSymLabFormula(&slfml, op->opval2);
+    while (*(--p) != ',')
+      ;
+    p += 1;
+    p = catSlfml(p, &slfml);
+    *p++ = ')';
+  }
+  return p;
 }
 
-
-/*
-
-  vsect ラベル出力
-
-  input :
-    adrs : label address
-    mode : label mode
-
-*/
-private void
-vlabelout (address adrs, lblmode mode)
-{
-    char  buff[128];
-    int   opt_c_save = option_C;
-
-    if (isHIDDEN (mode))
-	return;
-    
-    if (opt_c_save == 0)
-	option_C = 1;	/* 非初期化 vsect はラベルだけの記述は出来ない */
-    label_line_out (adrs, mode);
-    option_C = opt_c_save;
-    outputa (buff);
+// ラベル定義のコロン文字列を得る
+//   既定値の-C2の場合、通常ラベル ":"、外部宣言ラベル "::"
+static const char* getColonForLabelDefine(int xdef) {
+  switch (Dis.symbolColonNum) {
+    default:
+    case SYMBOL_COLON_OMIT:
+      break;
+    case SYMBOL_COLON_ONE:
+      return ":";
+    case SYMBOL_COLON_AUTO:
+      return xdef ? "::" : ":";
+    case SYMBOL_COLON_TWO:
+      return "::";
+  }
+  return "";
 }
 
-/*
+// ラベル定義行出力
+// 引数
+//   adrs: label address
+//   mode: label mode
+//   sectType: セクション番号(XDEF_TEXTなど)
+//             0の場合はラベルファイルで追加されたシンボルだけを出力する。
+//   last: TRUEならソースコード最後尾のラベル
+//
+// シンボル名が定義されていれば「シンボル名::」、未定義なら「Lxxxxxx:」などの
+// 形式で出力する(コロンの数やラベル先頭文字はオプションの状態で変わる)。
+// シンボル属性によっては全く出力されないこともある。
+//
+void label_line_out(address adrs, lblmode mode, int sectType, boolean last,
+                    LineType lineType) {
+  symbol* symbolptr;
+  SymbolLabelFormula slfml;
+  const char* colon;
 
-  ワードテーブルの出力
+  if (isHIDDEN(mode)) return;
 
-  input:
-    pc : word table begin address
-    pcend : word table end address
+  if ((symbolptr = symbol_search(adrs)) != NULL) {
+    symlist* sym = &symbolptr->first;
+    do {
+      if (sym->type == (UWORD)sectType || (!last && sym->type == 0)) {
+        colon = getColonForLabelDefine(sym->type);
+        outputDirective2(lineType, adrs, sym->sym, colon);
+      }
+      sym = sym->next;
+    } while (sym);
+    return;
+  }
 
-*/
-private void
-wgen (address pc, address pcend)
-{
-    char buf[128];
-    address store;
+  // 各セクションの最後尾はシンボルテーブルで定義されたラベル以外は出力しない
+  if (last && sectType) return;
 
-    charout ('w');
-
-    for (store = pc + Ofst; store + 2 <= pcend + Ofst; store += 2) {
-	address label = (int)*(signed short*)store;
-
-	if ((LONG)label < (LONG)BeginTEXT) {
-	    make_proper_symbol (buf, BeginTEXT);
-	    strcat (buf, "-");
-	    itox6d (buf + strlen (buf), (ULONG)(BeginTEXT - label));
-	} else if ((LONG)label > (LONG)Last) {
-	    make_proper_symbol (work, Last);
-	    strcat (buf, "+");
-	    itox6d (buf + strlen (buf), (ULONG)(label - Last));
-	} else
-	    make_proper_symbol (work, label);
-
-	output_opecode (PSEUDO DC_W);
-	outputa (buf);
-	newline (store - Ofst);
-    }
-
-    if (store != pcend + Ofst)
-	dataout (store - Ofst, pcend + Ofst - store, UNKNOWN);
+  // シンボル名が無ければ Lxxxxxx: の形式で出力する
+  makeBareLabel(&slfml, adrs);
+  colon = getColonForLabelDefine(0);
+  outputDirective2(lineType, adrs, slfml.expr, colon);
 }
 
-#endif	/* OSKDIS */
+const char* ctimez(time_t* clock) {
+  char* p = ctime(clock);
 
+  if (p == NULL) return "(invalid time)";
+  removeTailLf(p);
+  return p;
+}
 
-/* EOF */
+static char* mputype_numstr(mputypes m) {
+  if (m & M000) return "68000";
+  if (m & M010) return "68010";
+  if (m & M020) return "68020";
+  if (m & M030) return "68030";
+  if (m & M040) return "68040";
+  /* if (m & M060) */
+  return "68060";
+}
+
+// EOF

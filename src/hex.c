@@ -1,161 +1,97 @@
-/* $Id: hex.c,v 1.1 1996/11/07 08:03:40 ryo freeze $
- *
- *	ソースコードジェネレータ
- *	16進変換 , String 関数
- *	Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
- *	All rights reserved.
- *	Copyright (C) 1997-2010 Tachibana
- *
- */
+// ソースコードジェネレータ
+// 16進変換 , String 関数
+// Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
+// All rights reserved.
+// Copyright (C) 1997-2023 TcbnErik
 
-#include <string.h>	/* strcpy */
-
-#include "estruct.h"
 #include "hex.h"
 
+#include <stdio.h>
+
+#include "estruct.h"
+#include "global.h"
 
 char Hex[16] = "0123456789abcdef";
-int Zerosupress_mode = 0;
 
-USEOPTION option_Z;
+static char* ulongToDecimal(char* buf, ULONG n);
 
+char* itod2(char* buf, ULONG n) {
+  char x = n;
 
-/* 手抜き ^^; */
-extern char*
-itod2 (char* buf, ULONG n)
-{
-    int i = n % 100;
-
-    if (i / 10)
-	*buf++ = (i / 10) + '0';
-    *buf++ = (n % 10) + '0';
-    *buf = '\0';
-    return buf;
+  // 19以下の数を高速に変換する細工(trap #15用)
+  if (n >= 10) {
+    if (n >= 20) return ulongToDecimal(buf, n);
+    *buf++ = '1';
+    x -= 10;
+  }
+  *buf++ = x + '0';
+  *buf = '\0';
+  return buf;
 }
 
+static char* ulongToDecimal(char* buf, ULONG n) {
+  return buf + sprintf(buf, PRI_ULONG, n);
+}
 
-extern char*
-itox (char* buf, ULONG n, int width)
-{
-    if (option_Z) {
-	if (n == 0)
-	    *buf++ = '0';
-	else {
-	    char tmp[8];
-	    char* p = tmp + sizeof tmp;
-	    int i;
-
-	    do {
-		/* 下位桁からテンポラリに変換 */
-		*--p = Hex[n & 0xf];
-		n >>= 4;
-	    } while (n);
-	    i = (tmp + sizeof tmp) - p;
-	    do {
-		/* 上位桁からバッファに転送 */
-		*buf++ = *p++;
-	    } while (--i > 0);
-	}
-    }
-
+extern char* itox(char* buf, ULONG n, int width) {
+  if (Dis.Z) {
+    if (n == 0)
+      *buf++ = '0';
     else {
-	char* p = buf += width;
-	int i;
+      char tmp[8];
+      char* p = tmp + sizeof tmp;
+      int i = 0;
 
-	for (i = width; --i >= 0;) {
-	    /* 下位桁から変換 */
-	    *--p = Hex[n & 0xf];
-	    n >>= 4;
-	}
+      do {
+        // 下位桁からテンポラリに変換
+        i += 1;
+        *--p = Hex[n & 0xf];
+        n >>= 4;
+      } while (n);
+      do {
+        // 上位桁からバッファに転送
+        *buf++ = *p++;
+      } while (--i > 0);
     }
+  }
 
-    *buf = '\0';
-    return buf;
-}
+  else {
+    char* p = buf += width;
+    int i;
 
-
-#define DEFINE_ITOX(func, width) \
-extern char*			\
-func (char *buf, ULONG n)	\
-{				\
-    char* p = buf += width;	\
-    int i;			\
-				\
-    for (i = width; --i >= 0;) { \
-	*--p = Hex[n & 0xf];	\
-	n >>= 4;		\
-    }				\
-    *buf = '\0';		\
-    return buf;			\
-}
-
-DEFINE_ITOX (itox8_without_0supress, 8);
-DEFINE_ITOX (itox6_without_0supress, 6);
-DEFINE_ITOX (itox4_without_0supress, 4);
-
-
-/**** 以下の関数は GNU C Compiler 使用時には inline 展開されます. ****/
-
-#ifndef __GNUC__
-
-extern char*
-strend (char *p)
-{
-    while (*p++)
-	;
-    return --p;
-}
-
-
-extern char*
-itox2 (char* buf, ULONG n)
-{
-    if (!option_Z || n >= 0x10) {
-	/* 10 の位 */
-	*buf++ = Hex[(n >> 4) & 0xf];
+    for (i = width; --i >= 0;) {
+      /* 下位桁から変換 */
+      *--p = Hex[n & 0xf];
+      n >>= 4;
     }
-    /* 1 の位 */
-    *buf++ = Hex[n & 0xf];
-    *buf = '\0';
-    return buf;
+  }
+
+  *buf = '\0';
+  return buf;
 }
 
+static char* itox_without_0supress(char* buf, ULONG n, int width) {
+  char* p = buf += width;
+  int i;
 
-extern char*
-itox2_without_0supress (char* buf, ULONG n)
-{
-    *buf++ = Hex[(n >> 4) & 0xf];
-    *buf++ = Hex[n & 0xf];
-    *buf = '\0';
-    return buf;
+  for (i = width; --i >= 0;) {
+    *--p = Hex[n & 0xf];
+    n >>= 4;
+  }
+  *buf = '\0';
+  return buf;
 }
 
-
-extern char*
-itoxd (char* buf, ULONG n, int width)
-{
-    if (Zerosupress_mode != 1 || n >= 10)
-	*buf++ = '$';
-    return (width == 2) ? itox2 (buf, n)
-			: itox (buf, n, width);
+char* itox8_without_0supress(char* buf, ULONG n) {
+  return itox_without_0supress(buf, n, 8);
 }
 
-
-extern char*
-itox6 (char* buf, ULONG n)
-{
-    return itox (buf, n, (n >= 0x1000000) ? 8 : 6);
+char* itox6_without_0supress(char* buf, ULONG n) {
+  return itox_without_0supress(buf, n, 6);
 }
 
-
-extern char*
-itox6d (char* buf, ULONG n)
-{
-    if (Zerosupress_mode != 1 || n >= 10)
-	*buf++ = '$';
-    return itox6 (buf, n);
+char* itox4_without_0supress(char* buf, ULONG n) {
+  return itox_without_0supress(buf, n, 4);
 }
 
-#endif	/* __GNUC__ */
-
-/* EOF */
+// EOF

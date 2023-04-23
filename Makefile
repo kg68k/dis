@@ -6,6 +6,7 @@ U8TOSJ = u8tosj
 
 SRC_DIR = src
 DOC_DIR = docs
+INC_DIR = include
 BLD_DIR = build
 
 
@@ -15,18 +16,22 @@ SJ_SRCS = $(subst $(SRC_DIR)/,$(BLD_DIR)/,$(SRCS))
 DOCS = $(wildcard $(DOC_DIR)/*)
 SJ_DOCS = $(addprefix $(BLD_DIR)/,$(DOCS))
 
+INCS = $(wildcard $(INC_DIR)/*)
+SJ_INCS = $(addprefix $(BLD_DIR)/,$(INCS))
 
 .PHONY: all directories clean
 
-all: directories $(SJ_DOCS) $(SJ_SRCS)
+all: directories $(SJ_DOCS) $(SJ_INCS) $(SJ_SRCS)
 
-directories: $(BLD_DIR) $(BLD_DIR)/docs $(BLD_DIR)/avl
+directories: $(BLD_DIR) $(BLD_DIR)/avl $(BLD_DIR)/docs $(BLD_DIR)/include
 
-$(BLD_DIR) $(BLD_DIR)/docs $(BLD_DIR)/avl:
+$(BLD_DIR) $(BLD_DIR)/avl $(BLD_DIR)/$(DOC_DIR) $(BLD_DIR)/$(INC_DIR):
 	$(MKDIR_P) $@
 
+$(BLD_DIR)/$(DOC_DIR)/%: $(DOC_DIR)/%
+	$(U8TOSJ) < $^ >! $@
 
-$(BLD_DIR)/docs/%: $(DOC_DIR)/%
+$(BLD_DIR)/$(INC_DIR)/%: $(INC_DIR)/%
 	$(U8TOSJ) < $^ >! $@
 
 $(BLD_DIR)/%: $(SRC_DIR)/%
@@ -34,8 +39,8 @@ $(BLD_DIR)/%: $(SRC_DIR)/%
 
 
 clean:
-	-rm -f $(SJ_DOCS) $(SJ_SRCS)
-	-rmdir $(BLD_DIR)/docs $(BLD_DIR)/avl $(BLD_DIR)
+	-rm -f $(SJ_INCS) $(SJ_DOCS) $(SJ_SRCS)
+	-rmdir $(BLD_DIR)/$(INC_DIR) $(BLD_DIR)/$(DOC_DIR) $(BLD_DIR)/avl $(BLD_DIR)
 
 
 # EOF

@@ -1,41 +1,34 @@
-/* $Id: analyze.h,v 1.1 1996/10/24 04:27:42 ryo freeze $
- *
- *	ソースコードジェネレータ
- *	自動解析モジュールヘッダ
- *	Copyright (C) 1989,1990 K.Abe
- *	All rights reserved.
- *	Copyright (C) 1997-2010 Tachibana
- *
- */
+// ソースコードジェネレータ
+// 自動解析モジュール ヘッダ
+// Copyright (C) 1989,1990 K.Abe
+// All rights reserved.
+// Copyright (C) 1997-2023 TcbnErik
 
-#ifndef	ANALYZE_H
-#define	ANALYZE_H
+#ifndef ANALYZE_H
+#define ANALYZE_H
 
-#include "estruct.h"		/* typedef address, enum boolean */
-#include "label.h"		/* typedef lblmode */
+#include "estruct.h"
+#include "label.h"
 
+typedef enum { ANALYZE_IGNOREFAULT, ANALYZE_NORMAL } analyze_mode;
 
-typedef enum {
-    ANALYZE_IGNOREFAULT,
-    ANALYZE_NORMAL
-} analyze_mode;
+extern void setReasonVerbose(uint8_t lv);
+extern boolean analyze(address, analyze_mode);
+extern void not_program(address, address);
+extern boolean ch_lblmod(address, lblmode);
 
-extern boolean	analyze (address, analyze_mode);
-extern void	not_program (address, address);
-extern boolean	ch_lblmod (address, lblmode);
-extern void	relative_table (address);
-extern void	relative_longtable (address);
-extern void	z_table (address);
+extern void initReltblArray(ArrayBuffer* rtbuf);
+extern int analyzeRegisteredReltbl(ArrayBuffer* rtbuf);
+extern void registerReltblOrder(ArrayBuffer* rtbuf, address table, opesize size,
+                                boolean isProgram, lblmode mode);
 
-extern int	research_data (void);
-extern void	analyze_data (void);
-extern void	search_adrs_table (void);
-extern void	search_operand_label (void);
-extern int	search_string (int);
+extern void z_table(address);
+extern int research_data(boolean tweak);
+extern void analyze_data(void);
+extern void search_adrs_table(void);
+extern void search_operand_label(void);
+extern int search_string(int);
 
-extern boolean	Reason_verbose;
-extern boolean	Arg_after_call;
+#endif
 
-#endif	/* ANALYZE_H */
-
-/* EOF */
+// EOF

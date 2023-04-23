@@ -1,46 +1,54 @@
-/* $Id: output.h,v 1.1 1996/10/24 04:27:50 ryo freeze $
- *
- *	ソースコードジェネレータ
- *	出力ルーチン下請けヘッダ
- *	Copyright (C) 1989,1990 K.Abe
- *	All rights reserved.
- *	Copyright (C) 1997-2010 Tachibana
- *
- */
+// ソースコードジェネレータ
+// 出力ルーチン下請け ヘッダ
+// Copyright (C) 2023 TcbnErik
 
-#ifndef	OUTPUT_H
-#define	OUTPUT_H
+// This file is part of dis (source code generator).
+//
+// This program is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later
+// version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+// details.
+//
+// You should have received a copy of the GNU General Public License along with
+// this program. If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef OUTPUT_H
+#define OUTPUT_H
 
-extern void init_output (void);
-extern void output_file_open (char* , int);
-extern void output_file_close (void);
-extern void outputf (char*, ...);
-extern void outputa (char*);
-extern void outputca (int);
-extern void outputfa (char*, ...);
-extern void newline (address);
-#if 0
-extern void outputax (ULONG, int);
+#include "estruct.h"
+
+#define TAB_WIDTH 8
+
+typedef enum {
+  LINETYPE_BLANK,
+  LINETYPE_OTHER,
+  LINETYPE_TEXT,
+  LINETYPE_DATA,
+} LineType;
+
+extern void outputBlank(void);
+extern void outputDirective(LineType type, address pc, const char* s);
+extern void outputDirective2(LineType type, address pc, const char* s1,
+                             const char* s2);
+extern void outputDirectiveArray(LineType type, address pc, size_t length,
+                                 const char* array[]);
+extern void outputText(address pc, const char* s);
+extern void outputText2(address pc, const char* s1, const char* s2);
+extern void outputData(address pc, const char* s);
+extern void outputData2(address pc, const char* s1, const char* s2);
+extern void outputData3(address pc, const char* s1, const char* s2,
+                        const char* s3);
+
+extern char* writeTabAndCommentChar(char* buffer, int tabs);
+
+extern void openOutputFile(char* basename, size_t splitByte, const char* ext);
+extern void closeOutputFile(boolean freeBuf);
+
 #endif
-extern void outputaxd (ULONG, int);
-extern void outputax2_without_0supress (ULONG);
-extern void outputax4_without_0supress (ULONG);
-extern void outputax8_without_0supress (ULONG);
 
-extern boolean	is_confuse_output (void);
-
-#if 0
-extern void output (char*);
-extern void outputc (int);
-#endif
-
-#define CR  "\n"
-
-extern	int	Output_AddressCommentLine;
-extern	int	Output_SplitByte;
-
-
-#endif	/* OUTPUT_H */
-
-/* EOF */
+// EOF

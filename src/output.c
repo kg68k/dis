@@ -1,433 +1,420 @@
-/* $Id: output.c,v 1.1 1996/11/07 08:03:56 ryo freeze $
- *
- *	ソースコードジェネレータ
- *	出力ルーチン下請け
- *	Copyright (C) 1989,1990 K.Abe
- *	All rights reserved.
- *	Copyright (C) 1997-2010 Tachibana
- *
- */
+// ソースコードジェネレータ
+// 出力ルーチン下請け
+// Copyright (C) 2023 TcbnErik
 
-#include <stdio.h>
+// This file is part of dis (source code generator).
+//
+// This program is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later
+// version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+// details.
+//
+// You should have received a copy of the GNU General Public License along with
+// this program. If not, see <https://www.gnu.org/licenses/>.
+
 #include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
+
+#ifdef _MSC_VER
+#include <io.h>  // write()
+#else
 #include <unistd.h>
-#include <sys/fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-
-#ifdef __LIBC__
-  #define __DOS_INLINE__
-  #include <sys/dos.h>		/* _dos_getfcb */
 #endif
-
-#ifndef O_BINARY
-#define O_BINARY 0
-#endif
-
 
 #include "disasm.h"
 #include "estruct.h"
-#include "etc.h"	/* err */
-#include "generate.h"	/* Atab */
+#include "etc.h"
 #include "global.h"
-#include "hex.h"	/* strend */
+#include "hex.h"
 #include "output.h"
 
+#define BLOCK_SIZE_MAX (1024 * 1024)
+#define BLOCK_SIZE_MIN (16 * 1024)
+#define MAX_LINE_BYTES 1024
 
-USEOPTION	option_a, option_S;
+typedef struct {
+  FILE* fp;
+  char* basename;
+  char* filename;
 
-extern char	CommentChar;
+  char* buffer;
+  char* write;
+  size_t blockSize;
+  size_t bufferSize;  // blockSize + MAX_LINE_BYTES
 
-int	Output_AddressCommentLine;
-int	Output_SplitByte;
+  size_t splitByte;
+  boolean isSplitMode;  // 指定サイズごとにファイルを .000 .001 と切り換える
+  int fileBlockNum;  // 切り換え中のファイルの .000～ の番号
+  size_t limit;      // 次に切り換えるサイズ(アドレス)
 
-#ifdef STREAM
-static FILE*	Output_fp;
-#else
-static int	Output_handle;
-static char*	OutputLargeBuffer;
-static char*	OutputLargeBufferPtr;
-#endif
-static char	OutputBuffer[256];
-static char*	OutputBufferEnd = OutputBuffer;
-static boolean	SplitMode;
+  int lineCount;  // -a
 
-#define OUTPUT_BUFFER_SIZE	(64*1024)
+  LineType prevLineType;
+} OutputFile;
 
+static OutputFile outputFile;
 
-/* private 関数プロトタイプ */
-#ifndef STREAM
-private void	flush_buffer (void);
-#endif
+// static 関数プロトタイプ
+static char* appendAdrsCommentInner(address pc, char* buffer, char* end);
+static void switchOutputFileInner(address pc);
+static void openOutputFile2(void);
+static char* createNumberedFilename(const char* basename, int n);
+static void writeFileFromBuffer(size_t length);
 
-
-/* Inline Functions */
-
-static INLINE char*
-strcpy2 (char* dst, char* src)
-{
-    while ((*dst++ = *src++) != 0)
-	;
-    return --dst;
+// 必要なら出力ファイルを切り換える(インライン展開用)
+static void switchOutputFile(address pc) {
+  if (outputFile.isSplitMode) switchOutputFileInner(pc);
 }
 
+// 必要ならアドレスのコメントを追加する(インライン展開用)
+static char* appendAdrsComment(address pc, char* buffer, char* end) {
+  if (Dis.addressCommentLine == 0) return end;
 
-/*
-
-  初期化
-
-*/
-extern void
-init_output (void)
-{
-#ifndef STREAM
-    if ((OutputLargeBuffer = Malloc (OUTPUT_BUFFER_SIZE)) == NULL)
-	err ("出力バッファ用メモリを確保出来ません\n");
-    OutputLargeBufferPtr = OutputLargeBuffer;
-#endif
+  return appendAdrsCommentInner(pc, buffer, end);
 }
 
+// 必要ならファイル出力して、書き込みバッファの空きを確保する
+static void ensureBufferCapacity(void) {
+  size_t len = outputFile.write - outputFile.buffer;
 
-/*
+  if (len >= outputFile.blockSize) {
+    writeFileFromBuffer(outputFile.blockSize);
+  }
+}
 
-  出力ファイルをオープン
+// 前の行が空行でなければ、空行を出力する
+void outputBlank(void) {
+  if (outputFile.prevLineType == LINETYPE_BLANK) return;
 
-  char* filename == NULLなら前回指定されたファイル名を引き続き使用する.
-  通常は
-	output_file_open ("foo", 0);	 // foo.000
-	output_file_open (NULL, 1);	 // foo.001
-		...
-	output_file_open (NULL, -1);	 // foo.dat
-	output_file_open (NULL, -2);	 // foo.bss
-  として呼び出す.
+  outputFile.prevLineType = LINETYPE_BLANK;
+  *outputFile.write++ = '\n';
+}
 
-*/
+// 必要なら空行を出力する(次の行の種類を指定)
+static void outputBlankBefore(LineType type, address pc) {
+  if (type == LINETYPE_TEXT || type == LINETYPE_DATA) {
+    // その他orデータ -> テキスト、その他orテキスト -> データに
+    // 切り替われば空行を出力する
+    if (outputFile.prevLineType != type) outputBlank();
 
-extern void
-output_file_open (char* filename, int file_block_num)
-{
-    static char* basename;
+    if (outputFile.prevLineType == LINETYPE_BLANK) {
+      // 直前に空行を出力していれば、ファイル切り換えを試みる
+      switchOutputFile(pc);
+    }
+  }
+  outputFile.prevLineType = type;
+}
 
-    if (filename)
-	basename = filename;
+// PCを進めない行(疑似命令等)を出力する
+//   type==LINETYPE_BLANK or LINETYPE_OTHERの場合はpcは0でもよい。
+void outputDirective(LineType type, address pc, const char* s) {
+  char* p;
 
-    if (basename == NULL)
-	err ("dis: internal error!\n");
+  outputBlankBefore(type, pc);
 
-    if (strcmp ("-", basename) == 0) {
-#ifdef STREAM
-	Output_fp = stdout;
-#else
-	Output_handle = STDOUT_FILENO;
-#endif
+  ensureBufferCapacity();
+  p = strcpy2(outputFile.write, s);
+  *p++ = '\n';
+  *p = '\0';
+  outputFile.write = p;
+}
+
+// PCを進めない行を出力する(文字列×2)
+void outputDirective2(LineType type, address pc, const char* s1,
+                      const char* s2) {
+  char* p;
+
+  outputBlankBefore(type, pc);
+
+  ensureBufferCapacity();
+  p = strcpy2(outputFile.write, s1);
+  p = strcpy2(p, s2);
+  *p++ = '\n';
+  *p = '\0';
+  outputFile.write = p;
+}
+
+// PCを進めない行を出力する(配列指定)
+void outputDirectiveArray(LineType type, address pc, size_t length,
+                          const char* array[]) {
+  char* p;
+  size_t i;
+
+  outputBlankBefore(type, pc);
+
+  ensureBufferCapacity();
+  p = outputFile.write;
+  for (i = 0; i < length; ++i) p = strcpy2(p, array[i]);
+  *p++ = '\n';
+  *p = '\0';
+  outputFile.write = p;
+}
+
+// 文字列を出力
+static void outputString(LineType type, address pc, const char* s) {
+  char* head;
+  char* p;
+
+  outputBlankBefore(type, pc);
+  ensureBufferCapacity();
+  head = outputFile.write;
+  p = strcpy2(head, s);
+  p = appendAdrsComment(pc, head, p);
+  *p++ = '\n';
+  *p = '\0';
+  outputFile.write = p;
+}
+
+// 文字列(×2)を出力
+static void outputString2(LineType type, address pc, const char* s1,
+                          const char* s2) {
+  char* head;
+  char* p;
+
+  outputBlankBefore(type, pc);
+  ensureBufferCapacity();
+  head = outputFile.write;
+  p = strcpy2(head, s1);
+  p = strcpy2(p, s2);
+  p = appendAdrsComment(pc, head, p);
+  *p++ = '\n';
+  *p = '\0';
+  outputFile.write = p;
+}
+
+// 文字列(×3)を出力
+static void outputString3(LineType type, address pc, const char* s1,
+                          const char* s2, const char* s3) {
+  char* head;
+  char* p;
+
+  outputBlankBefore(type, pc);
+  ensureBufferCapacity();
+  head = outputFile.write;
+  p = strcpy2(head, s1);
+  p = strcpy2(p, s2);
+  p = strcpy2(p, s3);
+  p = appendAdrsComment(pc, head, p);
+  *p++ = '\n';
+  *p = '\0';
+  outputFile.write = p;
+}
+
+// プログラム行を出力する
+void outputText(address pc, const char* s) {
+  outputString(LINETYPE_TEXT, pc, s);
+}
+
+// プログラム行を出力する(文字列×2)
+void outputText2(address pc, const char* s1, const char* s2) {
+  outputString2(LINETYPE_TEXT, pc, s1, s2);
+}
+
+// データ行を出力する
+void outputData(address pc, const char* s) {
+  outputString(LINETYPE_DATA, pc, s);
+}
+
+// データ行を出力する(文字列×2)
+void outputData2(address pc, const char* s1, const char* s2) {
+  outputString2(LINETYPE_DATA, pc, s1, s2);
+}
+
+// データ行を出力する(文字列×3)
+void outputData3(address pc, const char* s1, const char* s2, const char* s3) {
+  outputString3(LINETYPE_DATA, pc, s1, s2, s3);
+}
+
+// 文字列の末尾にTABとコメント文字を書き込む
+//   TABの個数は指定のタブ位置になるまで(最低1個)
+//   文字列末尾のアドレスを返す
+char* writeTabAndCommentChar(char* buffer, int tabs) {
+  char* p = buffer;
+  char c;
+  int width = 0;
+
+  // 文字列の桁数を数える
+  while ((c = *p++) != '\0') {
+    if (c == '\t')
+      width = (width | (TAB_WIDTH - 1)) + 1;
+    else if (c == '\n')
+      width = 0;
+    else
+      width += 1;
+  }
+  p -= 1;
+
+  tabs -= (width / TAB_WIDTH);  // 必要なTABの個数
+  tabs -= 1;                    // 最低1個は書き込む分の補正
+
+  for (; tabs > 0; tabs--) *p++ = '\t';
+  *p++ = '\t';
+  *p++ = Dis.commentStr[0];
+
+  return p;
+}
+
+// アドレスのコメントを追加する
+static char* appendAdrsCommentInner(address pc, char* buffer, char* end) {
+  char* p;
+
+  outputFile.lineCount += 1;
+  if (outputFile.lineCount < Dis.addressCommentLine) return end;
+
+  // 指定行数に達した
+  outputFile.lineCount = 0;
+
+  p = writeTabAndCommentChar(buffer, Dis.Atab);
+  return itox6(p, (ULONG)pc);
+}
+
+// 必要なら出力ファイルを切り換える
+static void switchOutputFileInner(address pc) {
+  if ((size_t)(pc - Dis.beginTEXT) < outputFile.limit) return;
+
+  closeOutputFile(FALSE);
+
+  outputFile.limit += outputFile.splitByte;
+  outputFile.filename =
+      createNumberedFilename(outputFile.basename, ++outputFile.fileBlockNum);
+  openOutputFile2();
+}
+
+// 可変容量メモリ確保
+static void* allocMemory(size_t max, size_t min, size_t add, size_t* base,
+                         size_t* total) {
+  size_t size;
+  for (size = max; size >= min; size >>= 1) {
+    size_t bufSize = size + add;
+    void* buf = Malloc(bufSize);
+
+    if (buf) {
+      *base = size;
+      *total = bufSize;
+      return buf;
+    }
+  }
+
+  return NULL;
+}
+
+// 書き込みバッファを確保する
+static void allocBuffer(void) {
+  void* buf;
+  size_t blockSize, bufSize;
+
+  if (outputFile.buffer != NULL) return;
+
+  buf = allocMemory(BLOCK_SIZE_MAX, BLOCK_SIZE_MIN, MAX_LINE_BYTES, &blockSize,
+                    &bufSize);
+  if (buf == NULL) notEnoughMemory();
+
+  outputFile.blockSize = blockSize;
+  outputFile.bufferSize = bufSize;
+  outputFile.write = outputFile.buffer = buf;
+}
+
+// 書き込みバッファを解放する
+static void freeBuffer(void) {
+  if (outputFile.buffer != NULL) free(outputFile.buffer);
+  outputFile.write = outputFile.buffer = NULL;
+}
+
+// 出力ファイルを開く
+//   splitByte>0のときは分割モードで、extが拡張子として追加される
+//   (ext==NULLのときは ".001", ".002", ...)
+void openOutputFile(char* basename, size_t splitByte, const char* ext) {
+  allocBuffer();
+
+  outputFile.basename = basename;
+  outputFile.filename = NULL;
+  outputFile.isSplitMode = FALSE;
+  outputFile.lineCount = 0;
+  outputFile.prevLineType = LINETYPE_BLANK;
+
+  if (strcmp(basename, "-") == 0) {
+    // ファイル名が - なら標準出力に書き出す
+    outputFile.fp = stdout;
+    return;
+  }
+
+  if (splitByte == 0) {
+    char* buf = Malloc(strlen(basename) + 1);
+    outputFile.filename = strcpy(buf, basename);
+  } else {
+    if (ext == NULL) {
+      // .001 .002 ...
+      outputFile.isSplitMode = TRUE;
+      outputFile.splitByte = splitByte;
+      outputFile.limit = splitByte;
+      outputFile.fileBlockNum = 0;
+      outputFile.filename = createNumberedFilename(outputFile.basename, 0);
     } else {
-	char* buf = Malloc (strlen (basename) + 4 + 1);
-	strcpy (buf, basename);
-
-	if (option_S) {
-	    switch (file_block_num) {
-	    case 0:
-		SplitMode = TRUE;
-		/* fall through */
-	    default:
-		sprintf (strend (buf), ".%03x", file_block_num);
-		break;
-	    case -1:
-		strcat (buf, ".dat");
-		SplitMode = FALSE;
-		break;
-	    case -2:
-		strcat (buf, ".bss");
-		SplitMode = FALSE;
-		break;
-	    }
-	}
-
-#ifdef	STREAM
-	if ((Output_fp = fopen (buf, "w")) == NULL)
-#else
-#ifdef	OSK
-	if ((Output_handle = creat (buf, S_IREAD|S_IWRITE)) < 0)
-#else
-	if ((Output_handle = open (buf,
-		O_CREAT | O_WRONLY | O_TRUNC | O_BINARY, S_IRUSR | S_IWUSR)) < 0)
-#endif	/* OSK */
-	    err ("%s をオープン出来ません.\n", buf);
-#endif
-
-	Mfree (buf);
+      // .dat .bss
+      char* buf = Malloc(strlen(basename) + strlen(ext) + 1);
+      strcpy(strcpy2(buf, basename), ext);
+      outputFile.filename = buf;
     }
+  }
+
+  openOutputFile2();
 }
 
-
-extern void
-output_file_close (void)
-{
-#ifdef STREAM
-    fclose (Output_fp);
-#else
-    flush_buffer ();
-    close (Output_handle);
-#endif
+static void openOutputFile2(void) {
+  outputFile.fp = fopen(outputFile.filename, "wb");
+  if (outputFile.fp == NULL)
+    err("\n%s をオープンできません。\n", outputFile.filename);
 }
 
+static char* createNumberedFilename(const char* basename, int n) {
+  size_t bufSize = strlen(basename) + 16;
+  char* buf = Malloc(bufSize);
 
-/*
-
-  書き込みエラー
-
-*/
-private void
-diskfull (void)
-{
-#ifdef STREAM
-    fclose (Output_fp);
-#else
-    close (Output_handle);
-#endif
-    err ("\nディスクが一杯です\n");
+  snprintf(buf, bufSize, "%s.%03x", basename, n);
+  return buf;
 }
 
+// 出力ファイルを閉じる
+void closeOutputFile(boolean freeBuf) {
+  writeFileFromBuffer(outputFile.write - outputFile.buffer);
+  if (freeBuf) freeBuffer();
 
-#ifndef STREAM
-private void
-output_through_buffer (char* str)
-{
-    
-    OutputLargeBufferPtr = strcpy2 (OutputLargeBufferPtr, str);
+  fclose(outputFile.fp);
+  outputFile.fp = NULL;
 
-    if (OutputLargeBufferPtr - OutputLargeBuffer > OUTPUT_BUFFER_SIZE - 1024)
-	flush_buffer ();
+  Mfree(outputFile.filename);
+  outputFile.filename = NULL;
 }
 
+// 書き込みバッファ内のデータをファイルに書き出す
+static void writeFileFromBuffer(size_t length) {
+  char* buffer = outputFile.buffer;
+  size_t wrote;
+  size_t dataLen, restLen;
 
-/*
+  if (length == 0) return;
 
-  ファイルへ出力
+  dataLen = outputFile.write - buffer;
+  if (dataLen < length) internalError(__FILE__, __LINE__, "dataLen < length");
 
-*/
-extern void
-outputf (char* fmt, ...)
-{
-#ifndef STREAM
-    char tmp[256];
-#endif
-    va_list ap;
-    va_start (ap, fmt);
+  wrote = (size_t)write(fileno(outputFile.fp), buffer, (unsigned int)length);
+  if (wrote != length) {
+    fclose(outputFile.fp);
+    err("\nディスクが一杯です。\n");
+  }
 
-#ifdef STREAM
-    vfprintf (Output_fp, fmt, ap);
-    va_end (ap);
-    if (ferror (Output_fp))
-	diskfull ();
-#else
-    vsprintf (tmp, fmt, ap);
-    va_end (ap);
-    output_through_buffer (tmp);
-#endif
+  restLen = dataLen - length;
+  if (restLen != 0) {
+    // 残りのデータをバッファ先頭に移動する
+    memcpy(buffer, buffer + length, restLen);
+  }
+  outputFile.write = buffer + restLen;
 }
 
-
-extern void
-outputa (char* str)
-{
-    OutputBufferEnd = strcpy2 (OutputBufferEnd, str);
-}
-
-
-extern void
-outputca (int ch)
-{
-    *OutputBufferEnd++ = ch;
-    *OutputBufferEnd   = '\0';
-}
-
-
-extern void
-outputfa (char* fmt, ...)
-{
-    va_list ap;
-
-    va_start (ap, fmt);
-    vsprintf (OutputBufferEnd, fmt, ap);
-    OutputBufferEnd = strend (OutputBufferEnd);
-    va_end (ap);
-}
-
-
-#if 0
-extern void
-outputax (ULONG n, int width)
-{
-    OutputBufferEnd = itox (OutputBufferEnd, n, width);
-}
-#endif
-
-extern void
-outputaxd (ULONG n, int width)
-{
-    OutputBufferEnd = itoxd (OutputBufferEnd, n, width);
-}
-
-extern void
-outputax2_without_0supress (ULONG n)
-{
-    *OutputBufferEnd++ = '$';
-    OutputBufferEnd = itox2_without_0supress (OutputBufferEnd, n);
-}
-
-extern void
-outputax4_without_0supress (ULONG n)
-{
-    *OutputBufferEnd++ = '$';
-    OutputBufferEnd = itox4_without_0supress (OutputBufferEnd, n);
-}
-
-extern void
-outputax8_without_0supress (ULONG n)
-{
-    *OutputBufferEnd++ = '$';
-    OutputBufferEnd = itox8_without_0supress (OutputBufferEnd, n);
-}
-
-
-extern void
-newline (address lineadrs)
-{
-
-    if (option_S && SplitMode) {
-	static int file_block_num = 0;
-
-	if (Output_SplitByte <=
-		((long)lineadrs - (long)BeginTEXT - Output_SplitByte * file_block_num)
-		&& OutputBuffer[0] == '\n') {
-	    output_file_close ();
-	    output_file_open (NULL, ++file_block_num);
-	}
-    }
-
-    if (option_a) {
-	static int linecount = 1;
-
-	if (linecount >= Output_AddressCommentLine) {
-	    char* ptr;
-	    int i, len = 0;
-
-	    /* 桁数を数える */
-	    for (ptr = OutputBuffer; *ptr; ptr++) {
-		if (*ptr == '\t') {
-		    len |= 7;
-		    len++;
-		}
-		else if (*ptr == '\n')
-		    len = 0;
-		else
-		    len++;
-	    }
-
-	    /* 規定位置までタブを出力する */
-	    for (i = Atab - len / 8 - 1; i > 0; i--)
-		*OutputBufferEnd++ = '\t';
-
-	    *OutputBufferEnd++ = '\t';
-	    *OutputBufferEnd++ = CommentChar;
-
-	    OutputBufferEnd = itox6 (OutputBufferEnd, (ULONG)lineadrs);
-	    linecount = 1;
-	}
-	else
-	    linecount++;
-    }
-
-    *OutputBufferEnd++ = '\n';
-    *OutputBufferEnd   = '\0';
-
-#ifdef STREAM
-    fputs (OutputBuffer, Output_fp);
-    if (ferror (Output_fp))
-	diskfull ();
-#else
-    output_through_buffer (OutputBuffer);
-#endif
-    OutputBufferEnd = OutputBuffer;
-}
-
-
-private void
-flush_buffer (void)
-{
-    long length = OutputLargeBufferPtr - OutputLargeBuffer;
-
-    if (write (Output_handle, OutputLargeBuffer, length) < length)
-	diskfull ();
-
-    OutputLargeBufferPtr = OutputLargeBuffer;
-}
-#endif /* STREAM */
-
-
-/*
-	ソースファイルの出力先と、標準エラー出力が同じなら真を返す.
-
-	dis foo.x
-		どちらも端末なので、真.
-
-	dis foo.x >& list
-		どちらも list なので、真
-
-	dis foo.x foo.s
-		foo.s と端末なので、偽.
-*/
-
-extern boolean
-is_confuse_output (void)
-{
-#ifdef	STREAM
-    int src_no = fileno (Output_fp);
-#else
-    int src_no = Output_handle;
-#endif
-
-    if (isatty (src_no) && isatty (STDERR_FILENO))
-	return TRUE;
-
-#ifdef __LIBC__
-    if (_dos_getfcb (src_no) == _dos_getfcb (STDERR_FILENO))
-	return TRUE;
-#else
-    {
-	struct stat src_st, err_st;
-
-	if (fstat (src_no, &src_st) == 0
-	 && fstat (STDERR_FILENO, &err_st) == 0
-	 && src_st.st_dev == err_st.st_dev
-	 && src_st.st_ino == err_st.st_ino)
-	    return TRUE;
-    }
-#endif
-
-    return FALSE;
-}
-
-
-#if 0
-/* following functions is no longer used. */
-
-extern void
-output (char* str)
-{
-    fputs (str, Output_fp);
-    if (ferror (Output_fp))
-	diskfull ();
-}
-
-extern void
-outputc (int ch)
-{
-    fputc (ch, Output_fp);
-}
-#endif
-
-
-/* EOF */
+// EOF

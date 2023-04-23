@@ -5,19 +5,17 @@
 PROGRAM		= dis
 
 YACC		= bison
-CC		= gcc-3 -mno-cygwin -finput-charset=cp932 -fexec-charset=cp932
+CC		= gcc -finput-charset=cp932 -fexec-charset=cp932 -fpermissive
 LD		= $(CC)
 LDFLAGS		=
 
-FUNCCFLAGS	= -DHAVE_STRUPR
+FUNCCFLAGS	=
 #		  -DHAVE_STRTOX
-#		  -DHAVE_STRUPR
 #		  -DHAVE_JCTYPE_H
 #		  -DNO_PRINTF_LDBL
 
 DEFAULTCFLAGS	= -Wall -pipe
 #		  -DQUICK_YES_NO
-#		  -DREAD_FEFUNC_H
 
 OPTCFLAGS	= -O3
 

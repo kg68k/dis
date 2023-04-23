@@ -1,30 +1,31 @@
-/* $Id: include.h,v 1.1 1996/10/24 04:27:46 ryo freeze $
- *
- *	ソースコードジェネレータ
- *	file include header
- *	Copyright (C) 1989,1990 K.Abe
- *	All rights reserved.
- *	Copyright (C) 1997-2010 Tachibana
- *
- */
+// ソースコードジェネレータ
+// インクルードファイル ヘッダ
+// Copyright (C) 1989,1990 K.Abe
+// All rights reserved.
+// Copyright (C) 1997-2023 TcbnErik
 
-#ifndef	INCLUDE_H
-#define	INCLUDE_H
+#ifndef INCLUDE_H
+#define INCLUDE_H
 
-extern void load_OS_sym (void);
+#include "estruct.h"
 
-#ifndef	OSKDIS
-extern const char*  Doscall_mac_path;
-extern const char* Iocscall_mac_path;
-extern const char*   Fefunc_mac_path;
-extern const char*   Sxcall_mac_path;
+typedef struct {
+  unsigned int callnoMask;  // (1 << n) - 1 であること
+  ULONG high;  // コール番号以外の値(例えばDOSコールなら0xff00)
+  char*** labelListPtr;  // 確保した配列を記録する変数へのポインタ
+  const char** fullpathPtr;  // 読み込んだファイル名を記録する変数へのポインタ
+  const char** filenamePtr;  // ファイル名が記録されている変数へのポインタ
+  char* macroPtr;  // マクロ名を書き込むバッファ
+} IncludeSpec;
 
-extern const char*  doscall_mac;
-extern const char* iocscall_mac;
-extern const char*   fefunc_mac;
+typedef struct {
+  char* dis_include;
+  char* include;
+} IncludeEnvs;
+
+extern void readInludeFileFromEnv(const IncludeSpec* spec, IncludeEnvs* env);
+extern int readIncludeFile(const IncludeSpec* spec, const char* filename);
 
 #endif
 
-#endif	/* INCLUDE_H */
-
-/* EOF */
+// EOF

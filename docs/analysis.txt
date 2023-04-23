@@ -1,0 +1,62 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+        コード解析パターン
+
+───────────────────────────────────────
+
+
+　以下の命令パターンを相対オフセットテーブルとして検出する。
+
+　最後の命令が JMP|JSR の場合は、テーブルの宛先は奇数アドレスに限られる。
+
+　*s はスケールファクタで*1。68020以降の場合は*2も受け付ける。
+
+  ADD Dm,Dm はコードを分かりやすくするために書いているだけで、解析対象ではない
+(スケールファクタが2の場合はこの命令は不要)。
+
+
+・MOVE + JMP|JSR
+
+    ADD Dm,Dm
+    MOVE (table,PC,Dm.[wl]*s),Dn
+    JMP|JSR (table,PC,Dn.w)
+
+
+・LEA + MOVE + JMP|JSR
+
+    ADD Dm,Dm
+    LEA (table,pc),An
+    MOVE (An,Dm.[wl]*s),Dn
+    JMP|JSR (An,Dn.w)
+
+
+・LEA + MOVE + PEA
+
+    ADD Dm,Dm
+    LEA (table,pc),An
+    MOVE (An,Dm.[wl]*s),Dn
+    PEA (An,Dn.w)
+
+
+・LEA + ADDA
+
+    ADD Dm,Dm
+    LEA (table,pc),An
+    ADDA (table,pc,Dm.w*s),An
+
+
+・MOVE + LEA
+
+    ADD Dm,Dm
+    MOVE (table,PC,Dm.[wl]*s),Dn
+    LEA (table,PC,Dn.w),An
+
+
+・MOVE + PEA
+
+    ADD Dm,Dm
+    MOVE (table,PC,Dm.[wl]*s),Dn
+    PEA (table,PC,Dn.w)
+
+
+───────────────────────────────────────

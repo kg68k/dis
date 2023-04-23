@@ -1,0 +1,5 @@
+6
+	dc.w
+	dc.w
+	dc.l
+end[]

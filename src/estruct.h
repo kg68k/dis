@@ -1,127 +1,129 @@
-/* $Id: estruct.h,v 1.1 1996/10/24 04:27:44 ryo freeze $
- *
- *	ソースコードジェネレータ
- *	構造体定義ファイル
- *	Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
- *	All rights reserved.
- *	Copyright (C) 1997-2010 Tachibana
- *
- */
+// ソースコードジェネレータ
+// 構造体定義ファイル
+// Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
+// All rights reserved.
+// Copyright (C) 1997-2023 TcbnErik
 
-#ifndef	ESTRUCT_H
-#define	ESTRUCT_H
+#ifndef ESTRUCT_H
+#define ESTRUCT_H
+
+#include <stddef.h>  // size_t
+
+#ifdef _MSC_VER
+#define NORETURN __declspec(noreturn)
+#else
+#define NORETURN  // [[noreturn]]
+#endif
+
+#ifdef __GNUC__
+#define GCC_NORETURN __attribute__((noreturn))
+#define GCC_PRINTF(a, b) __attribute__((format(printf, a, b)))
+#else
+#define GCC_NORETURN
+#define GCC_PRINTF(a, b)
+#endif
+
+#if __GNUC__ >= 3
+#define GCC_UNUSED __attribute__((unused))
+#else
+#define GCC_UNUSED
+#endif
+
+#if defined(__GNUC__) && defined(__mc68000__)
+#define GCC_ALIGN(n) __attribute__((aligned(n)))
+#else
+#define GCC_ALIGN(n)
+#endif
 
 #ifdef __HUMAN68K__
-#define __attribute__(x) /* NOTHING */
+typedef signed char int8_t;
+typedef signed short int16_t;
+typedef signed int int32_t;
+typedef unsigned char uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int uint32_t;
+typedef unsigned int uintptr_t;
+
+#define PRIx16 "hx"
+#define PRIu32 "u"
+#define PRIx32 "x"
+#else
+#include <inttypes.h>
+#include <stdint.h>
 #endif
 
-/* #include <class.h> */
-typedef unsigned char	UBYTE;
-typedef short		WORD;
-typedef unsigned short	UWORD;
-typedef long		LONG;
-typedef unsigned long	ULONG;
+// M680x0 data types
+typedef int8_t BYTE;
+typedef int16_t WORD;
+typedef int32_t LONG;
+typedef uint8_t UBYTE;
+typedef uint16_t UWORD;
+typedef uint32_t ULONG;
+typedef uint32_t address;
 
+#define PRI_OPCODE "$%04" PRIx16  // UWORD -> "$4e71"
+#define PRI_ULONG "%" PRIu32      // ULONG -> "123"
+#define PRI_ULHEX "$%08" PRIx32   // ULONG -> "$0089abcd"
+#define PRI_ADRS "$%08" PRIx32    // address -> "$0089abcd"
 
-#ifdef	TRUE
-#undef	TRUE
-#endif
-#ifdef	FALSE
-#undef	FALSE
+// host data types
+typedef uint8_t mputypes;
+typedef uint8_t fputypes;
+typedef uint8_t mmutypes;
+
+typedef uint8_t* codeptr;
+
+#if defined(TRUE) || defined(FALSE)
+#error TRUE and FALSE are already defined somewhere.
 #endif
 typedef enum { FALSE, TRUE } boolean;
 
 typedef enum {
-    BYTESIZE,		/* バイト */
-    WORDSIZE,		/* ワード */
-    LONGSIZE,		/* ロングワード */
-    QUADSIZE,		/* クワッドワード */
-    SHORTSIZE,		/* ショート( 相対分岐命令 ) */
+  BYTESIZE,   // バイト
+  WORDSIZE,   // ワード
+  LONGSIZE,   // ロングワード
+  QUADSIZE,   // クワッドワード
+  SHORTSIZE,  // ショート(相対分岐命令)
 
-    SINGLESIZE,		/* 32bit実数型 */
-    DOUBLESIZE,		/* 64bit実数型 */
-    EXTENDSIZE,		/* 96bit実数型 */
-    PACKEDSIZE,		/* 96bitBCD実数型 */
-    NOTHING,		/* 無し */
+  SINGLESIZE,  // 32bit実数型
+  DOUBLESIZE,  // 64bit実数型
+  EXTENDSIZE,  // 96bit実数型
+  PACKEDSIZE,  // 96bit BCD実数型
+  NOTHING,     // 無し
 
-    STRING,		/* 文字列 */
-    RELTABLE,		/* リロケータブルオフセットテーブル */
-    RELLONGTABLE,	/* ロングワードなリロケータブルオフセットテーブル */
-    ZTABLE,		/* 絶対番地テーブル */
-#ifdef	OSKDIS
-    WTABLE,		/* ワードテーブル */
-#endif	/* OSKDIS */
+  STRING,    // 文字列
+  RELTABLE,  // リロケータブルオフセットテーブル
+  RELLONGTABLE,  // ロングワードなリロケータブルオフセットテーブル
+  ZTABLE,  // 絶対番地テーブル
 
-    EVENID,
-    CRID,
-    WORDID,
-    LONGID,
-    BYTEID,
-    ASCIIID,
-    ASCIIZID,
-    LASCIIID,
-    BREAKID,
-    ENDTABLEID,
-    UNKNOWN = 128	/* 不明 */
+  WTABLE,  // OSK ワードテーブル
+
+  EVENID,  // テーブルの識別子
+  CRID,
+  BYTEID,
+  ASCIIID,
+  ASCIIZID,
+  LASCIIID,
+  BREAKID,
+
+  UNKNOWN = 128  // 不明
 } opesize;
 
+typedef struct {
+  void* buffer;
+  void* write;
+  size_t capacity;
+  size_t count;
+  size_t bytes;
+  boolean isFrozen;
+} ArrayBuffer;
 
-typedef UBYTE*	address;
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
+static inline int isEven(address adrs) { return (adrs & 1) ^ 1; }
+static inline int isOdd(address adrs) { return (adrs & 1); }
 
-typedef struct {	/* .x ファイルのヘッダ */
-    UWORD   head;
-    char    reserve2;
-    char    mode;
-    address base;
-    address exec;
-    ULONG   text;
-    ULONG   data;
-    ULONG   bss;
-    ULONG   offset;
-    ULONG   symbol;
-    char    reserve[ 0x1c ];
-    ULONG   bindinfo;
-} __attribute__ ((packed)) xheader;
+#endif  // ESTRUCT_H
 
-typedef struct {	/* .z ファイルのヘッダ */
-    UWORD   header;
-    ULONG   text;
-    ULONG   data;
-    ULONG   bss;
-    char    reserve[8];
-    address base;
-    UWORD   pudding;
-} __attribute__ ((packed)) zheader;
-
-
-#ifdef	OSKDIS
-typedef struct {	/* OS-9/680x0 モジュールのヘッダ    */
-    UWORD   head;	/* +00 $4AFC			    */
-    UWORD   sysrev;	/* +02 リビジョンＩＤ		    */
-    ULONG   size;	/* +04 モジュールサイズ		    */
-    ULONG   owner;	/* +08 オーナＩＤ		    */
-    address name;	/* +0C モジュール名オフセット	    */
-    UWORD   accs;	/* +10 アクセス許可		    */
-    UWORD   type;	/* +12 モジュールタイプ／言語	    */
-    UWORD   attr;	/* +14 属性／リビジョン		    */
-    UWORD   edition;	/* +16 エディション		    */
-    address usage;	/* +18 使い方コメントのオフセット   */
-    address symbol;	/* +1C シンボルテーブル		    */
-    char    resv[14];	/* +20 予約済み			    */
-    UWORD   parity;	/* +2E ヘッダパリティ		    */
-    address exec;	/* +30 実行オフセット		    */
-    address excpt;	/* +34 ユーザトラップエントリ	    */
-    ULONG   mem;	/* +38 メモリサイズ		    */
-    ULONG   stack;	/* +3C スタックサイズ		    */
-    address idata;	/* +40 初期化データオフセット	    */
-    address irefs;	/* +44 初期化参照オフセット	    */
-    address init;	/* +48 初期化実行エントリ(TRAPLIB)  */
-    address term;	/* +4C 終了実行エントリ(TRAPLIB)    */
-} __attribute__ ((packed)) os9header;
-#endif	/* OSKDIS */
-
-
-#endif	/* ESTRUCT_H */
-
-/* EOF */
+// EOF

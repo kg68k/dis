@@ -1,46 +1,52 @@
-/*
- *
- *	ソースコードジェネレータ
- *	浮動小数点実数値文字列変換モジュールヘッダ
- *	Copyright (C) 1997-2010 Tachibana
- *
- */
+// ソースコードジェネレータ
+// 浮動小数点実数値文字列変換モジュールヘッダ
+// Copyright (C) 1997-2023 TcbnErik
 
-#ifndef	FPCONV_H
-#define	FPCONV_H
+// This file is part of dis (source code generator).
+//
+// This program is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later
+// version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+// details.
+//
+// You should have received a copy of the GNU General Public License along with
+// this program. If not, see <https://www.gnu.org/licenses/>.
 
-#if !defined(__GNUC__) || (__GNUC__ < 2)
-#error You lose. This file can be compiled only by GNU-C compiler version 2.
-#endif
+#ifndef FPCONV_H
+#define FPCONV_H
 
+#include "estruct.h"
 
 typedef union {
-    struct {
-	unsigned long hi;
-	unsigned long lo;
-    } ul;
-    double d;
-} quadword;
+  uint8_t uc[4];
+  ULONG ul;
+} SingleReal;
 
 typedef union {
-    struct {
-	unsigned long hi;
-	unsigned long mi;
-	unsigned long lo;
-    } ul;
-    unsigned char uc[12];
-} packed_decimal;
+  uint8_t uc[8];
+  ULONG ul[2];
+} DoubleReal;
 
+typedef union {
+  uint8_t uc[12];
+  ULONG ul[3];
+} ExtendedReal;
 
-extern void	fpconv_s (char* buf, float* valp);
-extern void	fpconv_d (char* buf, double* valp);
-extern void	fpconv_x (char* buf, long double* valp);
-extern void	fpconv_p (char* buf, packed_decimal* valp);
-extern void	fpconv_q (char* buf, quadword* valp);
+typedef union {
+  uint8_t uc[12];
+  ULONG ul[3];
+} PackedDecimal;
 
-extern short	Inreal_flag;
+extern char* fpconv_s(char* buf, codeptr valp);
+extern char* fpconv_d(char* buf, codeptr valp);
+extern char* fpconv_x(char* buf, codeptr valp);
+extern char* fpconv_p(char* buf, codeptr valp);
 
+#endif  // FPCONV_H
 
-#endif	/* FPCONV_H */
-
-/* EOF */
+// EOF
