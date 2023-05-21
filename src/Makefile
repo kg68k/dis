@@ -87,7 +87,7 @@ SRCS		= analyze.c \
 
 OBJS		= $(addsuffix .o,$(basename $(SRCS)))
 
-DOCS		= analysis.txt ChangeLog.txt gpl-3.0.txt labelfile.txt README.txt \
+DOCS		= analysis.txt CHANGELOG.txt gpl-3.0.txt labelfile.txt README.txt \
 		  table.txt tablefile.txt
 
 INCS		= $(addprefix include/,doscall.mac fefunc.mac iocscall.mac sxcall.mac)

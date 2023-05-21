@@ -10,10 +10,10 @@ INC_DIR = include
 BLD_DIR = build
 
 
-SRCS = $(filter-out $(SRC_DIR)/avl $(SRC_DIR)/ports, $(wildcard $(SRC_DIR)/*)) $(wildcard $(SRC_DIR)/avl/*)
+SRCS = $(filter-out $(SRC_DIR)/avl,$(wildcard $(SRC_DIR)/*)) $(wildcard $(SRC_DIR)/avl/*)
 SJ_SRCS = $(subst $(SRC_DIR)/,$(BLD_DIR)/,$(SRCS))
 
-DOCS = $(wildcard $(DOC_DIR)/*) $(DOC_DIR)/CHANGELOG.txt
+DOCS = $(filter-out $(DOC_DIR)/ports.md,$(wildcard $(DOC_DIR)/*)) $(DOC_DIR)/CHANGELOG.txt
 SJ_DOCS = $(addprefix $(BLD_DIR)/,$(DOCS))
 
 INCS = $(wildcard $(INC_DIR)/*)
