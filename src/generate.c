@@ -203,8 +203,11 @@ lblbuf* generateSection(char* sfilename, char* section, address end,
       textgen(pc, nextLabel->label);
     } else if (isTABLE(mode)) {
       pc = tablegen(pc, type);
-      if (pc != nextLabel->label)
-        internalError(__FILE__, __LINE__, "pc != nextLabel->label.");
+      if (pc != nextLabel->label) {
+        // テーブル終了条件を end[num]、end[breakonly] にするとラベルを越えてテーブルとして認識され、
+        // tablegen() でまるごと出力されるので、その場合は pc もテーブル終端まで進める
+        nextLabel = search_label(pc);
+      }
     } else if (isBSS) {
       bssgen(pc, nextLabel->label, lblmodeOpesize(mode));
     } else {

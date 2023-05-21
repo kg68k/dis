@@ -29,7 +29,7 @@ DIFFS = $(addprefix $(DIFF_DIR)/,$(addsuffix .dif,$(TEST2)))
 DIFFS_OK = $(addprefix $(DIFF_DIR)/,$(addsuffix .ok,$(TEST2)))
 
 
-.PHONY: all clean makeexe makedis makedif
+.PHONY: all clean exe dis dif
 
 .PRECIOUS: $(OBJ_DIR)/%.x $(DIS_DIR)/%.s
 
@@ -86,6 +86,14 @@ $(DIS_DIR)/split_end.s: $(OBJ_DIR)/split_end.x $(DIS) $(DIS_DIR)
 
 $(DIS_DIR)/sym_oorange.s: $(OBJ_DIR)/sym_oorange.x $(DIS) $(DIS_DIR)
 	$(DIS) $(DISFLAGS) $< $@ -s2
+
+$(DIS_DIR)/tab_lbl_nobreak.s: $(OBJ_DIR)/tab_lbl_nobreak.x $(DIS) $(DIS_DIR) \
+	$(SRC_DIR)/tab_lbl_nobreak.lab $(SRC_DIR)/tab_lbl_nobreak.tab
+	$(DIS) $(DISFLAGS) $< $@ -g$(SRC_DIR)/tab_lbl_nobreak.lab -T$(SRC_DIR)/tab_lbl_nobreak.tab
+
+$(DIS_DIR)/tab_break_sec.s: $(OBJ_DIR)/tab_break_sec.x $(DIS) $(DIS_DIR) \
+	$(SRC_DIR)/tab_break_sec.lab $(SRC_DIR)/tab_break_sec.tab
+	$(DIS) $(DISFLAGS) $< $@ -g$(SRC_DIR)/tab_break_sec.lab -T$(SRC_DIR)/tab_break_sec.tab
 
 $(DIS_DIR)/tab_depadrs.s: $(OBJ_DIR)/tab_depadrs.x $(DIS) $(DIS_DIR) \
 	$(SRC_DIR)/tab_depadrs.lab $(SRC_DIR)/tab_depadrs.tab

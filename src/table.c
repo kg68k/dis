@@ -74,6 +74,13 @@ static boolean isNotLongOnDependAddress(address pc, opesize size) {
   return depend_address(pc);
 }
 
+static address getEndOfSection(address pc) {
+  if (pc < Dis.beginDATA) return Dis.beginDATA;
+  if (pc < Dis.beginBSS) return Dis.beginBSS;
+  if (pc < Dis.beginSTACK) return Dis.beginSTACK;
+  return Dis.LAST;
+}
+
 static void interpret(table* table_ptr, const char* filename) {
   formula* cur_expr = table_ptr->formulaptr;
   lblbuf* lblptr = NULL;
@@ -84,7 +91,7 @@ static void interpret(table* table_ptr, const char* filename) {
   address pc0 = 0;
 
   const boolean in_bss = (Dis.beginBSS <= tabletop) ? TRUE : FALSE;
-  const address limit = in_bss ? Dis.LAST : Dis.beginBSS;
+  const address limit = getEndOfSection(tabletop);
 
   ParseTblParam param = {
       .text = NULL,
