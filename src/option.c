@@ -439,6 +439,10 @@ static void analyzeOption_reltblZero(const char* s, const char* optionName) {
   Dis.reltblZero = getLongOptionInt0(s, RELTBL_ZERO_ALL, optionName);
 }
 
+static void analyzeOption_movemZero(const char* s, const char* optionName) {
+  Dis.movemZero = getLongOptionInt0(s, 1, optionName);
+}
+
 enum {
   LONGOPT_VERSION,
   LONGOPT_HELP,
@@ -457,6 +461,7 @@ enum {
   LONGOPT_STRIP_PATH,
   LONGOPT_DETERMINISTIC,
   LONGOPT_RELTBL_ZERO,
+  LONGOPT_MOVEM_ZERO,
   LONGOPT_FILETYPE,
 };
 
@@ -493,6 +498,7 @@ static const LongOption longOptions[] = {
     {"strip-include-path", LONGOPT_STRIP_PATH, FALSE, 0},
     {DETERMINISTIC, LONGOPT_DETERMINISTIC, FALSE, 0},
     {"reltbl-zero", LONGOPT_RELTBL_ZERO, TRUE, 0},
+    {"movem-zero", LONGOPT_MOVEM_ZERO, TRUE, 0},
     {"x", LONGOPT_FILETYPE, FALSE, FILETYPE_X},
     {"r", LONGOPT_FILETYPE, FALSE, FILETYPE_R},
     {"z", LONGOPT_FILETYPE, FALSE, FILETYPE_Z},
@@ -583,6 +589,9 @@ static boolean analyzeLongOption(const char* s) {
       break;
     case LONGOPT_RELTBL_ZERO:
       analyzeOption_reltblZero(param, lo->s);
+      break;
+    case LONGOPT_MOVEM_ZERO:
+      analyzeOption_movemZero(param, lo->s);
       break;
     case LONGOPT_FILETYPE:
       Dis.fileType = lo->val;
@@ -868,6 +877,7 @@ static const char usageText[] =
     "                +4 サプレスされたインデックスレジスタに対するスケーリングのチェック\n"
     "                +8 サプレスされたインデックスレジスタに対するサイズ指定(.l)のチェック\n"
     "--reltbl-zero=num  リラティブオフセットテーブルに0を認める(0:しない 1:[先頭のみ] 2:全域)\n"
+    "--movem-zero=num   movem #0 を未定義命令と見なさない(0:[しない] 1:する)\n"
 
     "\n"
     "アセンブリ表記オプション:\n"

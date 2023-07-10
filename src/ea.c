@@ -234,13 +234,17 @@ void setReglist(operand* op, UWORD reglist, boolean predec) {
   if (Dis.needString) {
     char* p = op->operand;
 
-    // -(An) のみ |D0|D1|...|D6|D7|A0|A1|...|A6|A7| の並び
-    unsigned int dreg = predec ? bit_reverse(reglist >> 8) : reglist & 0xff;
-    unsigned int areg = predec ? bit_reverse(reglist & 0xff) : reglist >> 8;
+    if (reglist == 0) {
+      strcpy(p, "#0");
+    } else {
+      // -(An) のみ |D0|D1|...|D6|D7|A0|A1|...|A6|A7| の並び
+      unsigned int dreg = predec ? bit_reverse(reglist >> 8) : reglist & 0xff;
+      unsigned int areg = predec ? bit_reverse(reglist & 0xff) : reglist >> 8;
 
-    p = stringifyRegList(p, dreg, DregD);
-    if (dreg && areg) *p++ = '/';
-    stringifyRegList(p, areg, AregD);
+      p = stringifyRegList(p, dreg, DregD);
+      if (dreg && areg) *p++ = '/';
+      stringifyRegList(p, areg, AregD);
+    }
   }
 }
 

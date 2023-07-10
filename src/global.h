@@ -215,6 +215,7 @@ typedef struct {
   uint8_t stripIncludePath;
   uint8_t suppressDollar;  // -Z1
   uint8_t sxWindow;        // -u1
+  uint8_t movemZero;
 
   // 動作モード等
   ArrayBuffer reltblArray GCC_ALIGN(4);

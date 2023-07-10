@@ -560,6 +560,26 @@ static boolean tstope(codeptr ptr, disasm* code) {
   return TRUE;
 }
 
+// MOVEM
+static boolean movemope(codeptr ptr, disasm* code) {
+  UWORD reglist = WORD2;
+
+  if (reglist == 0) {  // Register List Mask fieldがすべて0
+    if (Dis.movemZero == 0) return FALSE;
+  }
+  OPECODE(movem);
+  code->size = code->size2 = (WORD1 & 0x40 ? LONGSIZE : WORDSIZE);
+  code->bytes = 4;
+  if (BYTE1 & 4) {
+    if (!setEA(code, &code->op1, ptr, CONTROL | POSTINC)) return FALSE;
+    setReglist(&code->op2, reglist, FALSE);
+  } else {
+    setReglist(&code->op1, reglist, is_predecrement(WORD1));
+    return setEA(code, &code->op2, ptr, CTRLCHG | PREDEC);
+  }
+  return TRUE;
+}
+
 static boolean op04(codeptr ptr, disasm* code) {
   if ((WORD1 & 0xffc0) == 0x4c00) {
     switch (WORD2 & 0x8ff8) {
@@ -681,7 +701,7 @@ static boolean op04(codeptr ptr, disasm* code) {
     if ((BYTE2 & 0xf0) == 0x70) return op4e7x(ptr, code);
 
     if ((WORD1 & 0xf0) == 0x40) {
-      void (*decodeTrap)(codeptr ptr, disasm * code) = Dis.actions->decodeTrap;
+      void (*decodeTrap)(codeptr ptr, disasm* code) = Dis.actions->decodeTrap;
 
       if (decodeTrap != NULL)
         decodeTrap(ptr, code);
@@ -730,20 +750,7 @@ static boolean op04(codeptr ptr, disasm* code) {
   }
 
   if ((WORD1 & 0xb80) == 0x880) {
-    if (WORD2 == 0) { /* register field empty ? */
-      return FALSE;
-    }
-    OPECODE(movem);
-    code->size = code->size2 = (WORD1 & 0x40 ? LONGSIZE : WORDSIZE);
-    code->bytes = 4;
-    if (BYTE1 & 4) {
-      if (!setEA(code, &code->op1, ptr, CONTROL | POSTINC)) return FALSE;
-      setReglist(&code->op2, WORD2, is_predecrement(WORD1));
-    } else {
-      setReglist(&code->op1, WORD2, is_predecrement(WORD1));
-      return setEA(code, &code->op2, ptr, CTRLCHG | PREDEC);
-    }
-    return TRUE;
+    return movemope(ptr, code);
   }
 
   switch (WORD1 & 0xff8) {

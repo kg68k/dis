@@ -1,7 +1,7 @@
 # Makefile for dis-test
 #   Do not use non-ASCII characters in this file.
 
-AS = has
+AS = has060
 ASFLAGS =
 LD = hlk
 LDFLAGS =
