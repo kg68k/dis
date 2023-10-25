@@ -507,7 +507,7 @@ static ParseResult parseExprEquality(Parser* parser, Expr* result) {
   }
 }
 
-static ParseResult parseExpr(Parser* parser, Expr* result) {
+static ParseResult parseLogicalAnd(Parser* parser, Expr* result) {
   ParseResult pr = parseExprEquality(parser, result);
   if (pr != PARSE_SUCCESS) return pr;
 
@@ -515,17 +515,36 @@ static ParseResult parseExpr(Parser* parser, Expr* result) {
     Expr expr2;
     TokenType type = getToken(&parser->tokenizer).type;
 
-    if (type != TOKEN_LOGICAL_OR && type != TOKEN_LOGICAL_AND)
-      return PARSE_SUCCESS;
+    if (type != TOKEN_LOGICAL_AND) return PARSE_SUCCESS;
     consumeToken(&parser->tokenizer);
 
     pr = parseExprEquality(parser, &expr2);
     if (pr != PARSE_SUCCESS) return pr;
 
-    result->value.ul = (type == TOKEN_LOGICAL_OR)
-                           ? (result->value.ul || expr2.value.ul)
-                           : (result->value.ul && expr2.value.ul);
+    result->value.ul = (result->value.ul && expr2.value.ul);
   }
+}
+
+static ParseResult parseLogicalOr(Parser* parser, Expr* result) {
+  ParseResult pr = parseLogicalAnd(parser, result);
+  if (pr != PARSE_SUCCESS) return pr;
+
+  while (1) {
+    Expr expr2;
+    TokenType type = getToken(&parser->tokenizer).type;
+
+    if (type != TOKEN_LOGICAL_OR) return PARSE_SUCCESS;
+    consumeToken(&parser->tokenizer);
+
+    pr = parseLogicalAnd(parser, &expr2);
+    if (pr != PARSE_SUCCESS) return pr;
+
+    result->value.ul = (result->value.ul || expr2.value.ul);
+  }
+}
+
+static ParseResult parseExpr(Parser* parser, Expr* result) {
+  return parseLogicalOr(parser, result);
 }
 
 // ASCIIZ 形式データのサイズ(文字列+"\0"のバイト数)を調べる

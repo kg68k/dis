@@ -1,0 +1,4 @@
+6
+	break	peek.b(pc)==0 || 1 && 0
+	.dc.b	{peek.b(pc)+pc},"-$"
+end[]

@@ -87,6 +87,10 @@ $(DIS_DIR)/split_end.s: $(OBJ_DIR)/split_end.x $(DIS) $(DIS_DIR)
 $(DIS_DIR)/sym_oorange.s: $(OBJ_DIR)/sym_oorange.x $(DIS) $(DIS_DIR)
 	$(DIS) $(DISFLAGS) $< $@ -s2
 
+$(DIS_DIR)/tab_andor.s: $(OBJ_DIR)/tab_andor.x $(DIS) $(DIS_DIR) \
+	$(SRC_DIR)/tab_andor.lab $(SRC_DIR)/tab_andor.tab
+	$(DIS) $(DISFLAGS) $< $@ -g$(SRC_DIR)/tab_andor.lab -T$(SRC_DIR)/tab_andor.tab
+
 $(DIS_DIR)/tab_lbl_nobreak.s: $(OBJ_DIR)/tab_lbl_nobreak.x $(DIS) $(DIS_DIR) \
 	$(SRC_DIR)/tab_lbl_nobreak.lab $(SRC_DIR)/tab_lbl_nobreak.tab
 	$(DIS) $(DISFLAGS) $< $@ -g$(SRC_DIR)/tab_lbl_nobreak.lab -T$(SRC_DIR)/tab_lbl_nobreak.tab
