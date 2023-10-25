@@ -122,7 +122,7 @@ static long double peekExtended(ExtendedReal* xr) {
   return *(long double*)xr;
 #else
   ExtendedReal le = {
-      .ul = {peeklv(xr->ul[2]), peeklv(xr->ul[1]), peeklv(xr->ul[0]) >> 16}};
+      .ul = {peeklv(xr->ul[2]), peeklv(xr->ul[1]), peeklv(xr->ul[0]) >> 16, 0}};
   return *(long double*)&le;
 #endif
 }

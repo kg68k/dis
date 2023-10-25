@@ -119,8 +119,8 @@ static char* untilspace(char* ptr) {
 
 // 属性文字列をopesizeに変換する
 //   成功時はattrptrに書き込んでTRUEを返す
-static boolean parseLabelAttribute(char* p, opesize* attrptr) {
-  opesize attr = DATLABEL;
+static boolean parseLabelAttribute(char* p, lblmode* attrptr) {
+  lblmode attr = DATLABEL;
   char c = *p++;
 
   switch (toupper(c)) {
@@ -218,7 +218,7 @@ static int get_line(char* linebuf, int line, address* adrs, char** symptrptr,
                     boolean* isLower, const char* filename) {
   address ad = (address)atox(linebuf);
   char* ptr = skipspace(untilspace(linebuf));
-  opesize attr = 0;
+  lblmode attr = 0;
 
   *isLower = islower(*ptr) ? TRUE : FALSE;
 

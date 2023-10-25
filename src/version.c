@@ -21,8 +21,8 @@
 
 #include "version.h"
 
-#define VERSION "4.02"
-#define DATE "2023-07-11"
+#define VERSION "4.03"
+#define DATE "2023-10-26"
 
 const char ProgramAndVersion[] = "dis version " VERSION;
 

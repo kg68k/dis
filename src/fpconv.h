@@ -34,7 +34,7 @@ typedef union {
 
 typedef union {
   uint8_t uc[12];
-  ULONG ul[3];
+  ULONG ul[4];
 } ExtendedReal;
 
 typedef union {
