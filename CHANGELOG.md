@@ -36,16 +36,16 @@
   依存している場合は未定義命令とみなす。
 * ビット演算命令のバイト即値の上位バイトのチェックを削除。
   (btst #-1,d0などを未定義命令とみなさないようにした)
-* FMOVEM.Xで<ea>とモードの不一致を未定義命令とみなす。
+* FMOVEM.Xで\<ea\>とモードの不一致を未定義命令とみなす。
 * 下記命令の未使用レジスタフィールドのチェックを追加。
   - CINVA、CPUSHA  (-R1)
   - 68040/68060のPFLUSHA  (-R1)
-  - 68851/68030のPFLUSHA  (<ea>)
+  - 68851/68030のPFLUSHA  (\<ea\>)
   - PFLUSH FC,MASK  (-R1)
-  - PTEST FC,<ea>,#0  (-R1)
-  - FMOVECR  (<ea>)
-  - FMOVE.P FPm,<ea>{Dn}  (k-Factor未使用ビット)
-  - FMOVE.<fmt> FPm,<ea>  (k-Factor)
+  - PTEST FC,\<ea\>,#0  (-R1)
+  - FMOVECR  (\<ea\>)
+  - FMOVE.P FPm,\<ea\>{Dn}  (k-Factor未使用ビット)
+  - FMOVE.\<fmt\> FPm,\<ea\>  (k-Factor)
 
 新機能(データ構造の解析)
 * -d指定時にデバイスヘッダの循環を検出して解析を打ち切る。
