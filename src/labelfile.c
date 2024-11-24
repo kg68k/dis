@@ -94,7 +94,7 @@ extern void make_labelfile(char* xfilename, char* labelfilename) {
     }
 
     fputc('\n', fp);
-    nadrs = Next(nadrs); /* nadrs = next (nadrs->label + 1); */
+    nadrs = Next(nadrs);
   }
 
   fclose(fp);

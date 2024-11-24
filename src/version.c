@@ -2,7 +2,7 @@
 // バージョン番号
 // Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 // This file is part of dis (source code generator).
 //
@@ -21,8 +21,8 @@
 
 #include "version.h"
 
-#define VERSION "4.03"
-#define DATE "2023-10-26"
+#define VERSION "4.04-beta.1"
+#define DATE "2024-11-25"
 
 const char ProgramAndVersion[] = "dis version " VERSION;
 

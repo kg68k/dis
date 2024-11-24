@@ -122,7 +122,7 @@ extern int search_string(int str_min) {
     address nlabel;
 
     charout('.');
-    nadrs = Next(nadrs); /* nadrs = next (pc + 1); */
+    nadrs = Next(nadrs);
     nlabel = nadrs->label;
     nmode = nadrs->mode;
 

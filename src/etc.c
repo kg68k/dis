@@ -142,8 +142,7 @@ extern int eprintf(const char* fmt, ...) {
 }
 #endif
 
-/* #define eputc (c) fputc (c, stderr) */
-extern int eputc(int c) { return fputc(c, stderr); }
+int eputc(int c) { return fputc(c, stderr); }
 
 // 指定したメモリ内の小文字を大文字化する
 void toUpperMemory(size_t len, void* ptr) {

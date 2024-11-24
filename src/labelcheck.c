@@ -53,7 +53,7 @@ static address labelshift(address previous_pc, address pc, address end,
     charout('!');
     nadrs->shift = nlabel - previous_pc;
     regist_label(previous_pc, PROLABEL);
-    nadrs = Next(nadrs); /* nadrs = next (nlabel + 1); */
+    nadrs = Next(nadrs);
     nlabel = nadrs->label;
   }
 
@@ -150,7 +150,7 @@ static void search_change_data(address from, address end) {
     address dependadrs = nearadrs(pc);
     address nlabel;
 
-    nadrs = Next(nadrs); /* nadrs = next (pc + 1); */
+    nadrs = Next(nadrs);
     nlabel = nadrs->label;
 
     while (dependadrs != (address)-1 && dependadrs + 4 <= nlabel)
@@ -160,7 +160,7 @@ static void search_change_data(address from, address end) {
       charout('!');
       nadrs->shift = nlabel - dependadrs;
       regist_label(dependadrs, DATLABEL | UNKNOWN);
-      nadrs = Next(nadrs); /* nadrs = next (nlabel + 1); */
+      nadrs = Next(nadrs);
       nlabel = nadrs->label;
     }
     pc = nlabel;
