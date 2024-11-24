@@ -62,8 +62,8 @@ static void initDisVars(void) {
   DisVars* d = &Dis;
 
   d->mpu = M000;
-  // d->fpu = 0;
-  // d->mmu = 0;
+  d->fpu = FPUTYPES_NO_FPU;
+  d->mmu = MMUTYPES_NO_MMU;
 
   d->execFile = NULL;
   d->outputFile = NULL;

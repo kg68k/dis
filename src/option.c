@@ -310,7 +310,7 @@ static void analyzeOption_m(const char* s) {
     if (mo->type == MPUOPT_MPU && init) {
       init = FALSE;
       Dis.mpu = 0;
-      Dis.mmu = 0;
+      Dis.mmu = MMUTYPES_NO_MMU;
       initFpuOption();
     }
     Dis.mpu |= mo->mpu;
@@ -558,7 +558,7 @@ static boolean analyzeLongOption(const char* s) {
       initFpuOption();
       break;
     case LONGOPT_NO_MMU:
-      Dis.mmu = 0;
+      Dis.mmu = MMUTYPES_NO_MMU;
       break;
     case LONGOPT_SP:
       Dis.a7ToSp = lo->val;

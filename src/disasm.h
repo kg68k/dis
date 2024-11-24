@@ -26,12 +26,14 @@
 #define F4SP (1 << 3)  // 040FPSP(software emulation)
 #define F060 (1 << 4)  // 68060
 #define F6SP (1 << 5)  // 060FPSP(software emulation)
+#define FPUTYPES_NO_FPU 0
 
 // mmutypes (same bit position as mputypes)
 #define MMU851 M020  // 68020 + 68851
 #define MMU030 M030  // 68030 internal MMU
 #define MMU040 M040  // 68040 internal MMU
 #define MMU060 M060  // 68060 internal MMU
+#define MMUTYPES_NO_MMU 0
 
 enum {
   CPID_MMU = 0,
@@ -67,19 +69,19 @@ enum {
 };
 
 typedef enum {
-  DregD,     // データレジスタ直接
-  AregD,     // アドレスレジスタ直接
-  AregID,    // アドレスレジスタ間接
-  AregIDPI,  // ポストインクリメントアドレスレジスタ間接
-  AregIDPD,  // プリデクリメントアドレスレジスタ間接
-  AregDISP,  // ディスプレースメント付アドレスレジスタ間接
-  AregIDX,   // インデックス付アドレスレジスタ間接
+  DregD,        // データレジスタ直接
+  AregD,        // アドレスレジスタ直接
+  AregID,       // アドレスレジスタ間接
+  AregIDPI,     // ポストインクリメントアドレスレジスタ間接
+  AregIDPD,     // プリデクリメントアドレスレジスタ間接
+  AregDISP,     // ディスプレースメント付アドレスレジスタ間接
+  AregIDX,      // インデックス付アドレスレジスタ間接
   AbShort = 8,  // 絶対ショートアドレス
   AbLong,       // 絶対ロングアドレス
-  PCDISP,  // ディスプレースメント付プログラムカウンタ相対
-  PCIDX,   // インデックス付プログラムカウンタ相対
-  IMMED,   // イミディエイトデータ
-  CcrSr = 16,  // CCR / SR 形式
+  PCDISP,       // ディスプレースメント付プログラムカウンタ相対
+  PCIDX,        // インデックス付プログラムカウンタ相対
+  IMMED,        // イミディエイトデータ
+  CcrSr = 16,   // CCR / SR 形式
 
   AregIDXB,  // インデックス&ベースディスプレースメント付きアドレスレジスタ間接
   AregPOSTIDX,  // ポストインデックス付きメモリ間接
@@ -136,8 +138,8 @@ typedef struct {
   uint8_t exod;         // od のサイズ(0,2,4) 0ならサプレス
 
   // DregD, AregD, AregIDX, PCIDX の場合のみ有効
-  uint8_t baseReg;  // ベースレジスタ番号(0-7)
-  uint8_t ixReg;    // インデックスレジスタ番号(0-15)
+  uint8_t baseReg;      // ベースレジスタ番号(0-7)
+  uint8_t ixReg;        // インデックスレジスタ番号(0-15)
   uint8_t ixSizeScale;  // インデックスレジスタのサイズとスケールファクタ
 
   uint8_t reserved[1];
@@ -156,11 +158,11 @@ enum {
 };
 
 typedef struct {
-  WORD opecodeOffset;  // 命令(OpString 上のオフセット)
-  mputypes mputypes;  // この命令を実行可能なMPUの種類(M000|M010|...)
-  int8_t fpuid;  // 浮動小数点命令のコプロセッサID(0-7,-1なら通常命令)
-  opesize size;   // サイズ(lea, pea は long) (0 = .b .w .l .s nothing)
-  opesize size2;  // サイズ(lea, pea, moveq, bset, ... は UNKNOWN)
+  WORD opecodeOffset;    // 命令(OpString 上のオフセット)
+  mputypes mputypes;     // この命令を実行可能なMPUの種類(M000|M010|...)
+  int8_t fpuid;          // 浮動小数点命令のコプロセッサID(0-7,-1なら通常命令)
+  opesize size;          // サイズ(lea, pea は long) (0 = .b .w .l .s nothing)
+  opesize size2;         // サイズ(lea, pea, moveq, bset, ... は UNKNOWN)
   opesize default_size;  // その命令のデフォルトのサイズ
   int bytes;             // 命令のバイト数
   opetype opeType;       // 命令の種類
