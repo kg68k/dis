@@ -2,7 +2,7 @@
 // テーブル処理モジュール
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 #include "table.h"
 
@@ -280,11 +280,13 @@ static void tablejob(address tabletop, FILE* fp, const char* filename) {
     if (strncasecmp(linebuf, "end", 3) == 0) {
       char* ptr;
 
-      for (ptr = linebuf + 3; *ptr == ' ' || *ptr == '\t'; ptr++)
-        ;
+      for (ptr = linebuf + 3; *ptr == ' ' || *ptr == '\t'; ptr++) {
+        // "end"の後の空白を飛ばす
+      }
       if (*ptr == '[') {
-        for (ptr++; *ptr == ' ' || *ptr == '\t'; ptr++)
-          ;
+        for (ptr++; *ptr == ' ' || *ptr == '\t'; ptr++) {
+          // "["の後の空白を飛ばす
+        }
         if (isdigit(*ptr)) {
           Table[TableCounter].loop = atoi(ptr);
           break;
@@ -306,8 +308,7 @@ static void tablejob(address tabletop, FILE* fp, const char* filename) {
       /* 行バッファを一つ分確保して格納する */
       cur_expr = Realloc(cur_expr, sizeof(formula) * (formula_line + 1));
       cur_expr[formula_line].line = Line_num;
-      cur_expr[formula_line].expr =
-          strcpy(Malloc(strlen(linebuf) + 1), linebuf);
+      cur_expr[formula_line].expr = Strdup(linebuf);
       formula_line++;
     }
   }

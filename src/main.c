@@ -2,7 +2,7 @@
 // メインルーチン
 // Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 #include <limits.h>  // PATH_MAX
 #include <stdio.h>
@@ -183,7 +183,7 @@ static void printTargetISA(void) {
       {M040, "68040"}, {M060, "68060"}, {MISP, "060ISP"}  //
   };
   static const TargetTable mmu[] = {
-      {MMU851, "68851"},
+      {MMU851, "68851"},  //
       {MMU030, "68030"},
       {MMU040, "68040"},
       {MMU060, "68060"}  //
@@ -444,7 +444,7 @@ static void change_filename(char** nameptr, const char* file) {
   eprintf("%sファイル名:", file);
   if (fgets(buf, sizeof buf, stdin) && (len = strlen(buf)) > 1) {
     buf[len - 1] = '\0';
-    *nameptr = strcpy(Malloc(len + 1), buf);
+    *nameptr = Strdup(buf);
     return;
   }
   errorExit();

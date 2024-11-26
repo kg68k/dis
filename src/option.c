@@ -2,7 +2,7 @@
 // Option analyze , etc
 // Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 #include <ctype.h>
 #include <stdio.h>
@@ -101,8 +101,9 @@ static void analyzeEnvOption(char* argv0, const char* optionList) {
   *argp++ = argv0;  // 自分自身のプログラム名
   for (cnt = count; --cnt;) {
     *argp++ = envp;
-    while (*envp++)
-      ;
+    while (*envp++) {
+      // loop
+    }
   }
   *argp = NULL;
 
@@ -196,7 +197,6 @@ void analyze_args(int argc, char* argv[]) {
   {
     char* file = strcmp("-", Dis.outputFile) ? Dis.outputFile : "aout";
     char* buf = dupAndToslash(file);
-    size_t len;
 
     {
       char* p = strrchr(buf, '/');
@@ -204,19 +204,15 @@ void analyze_args(int argc, char* argv[]) {
       p = strrchr((*p == '.') ? (p + 1) : p, '.');
       if (p) *p = '\0'; /* 拡張子を削除する */
     }
-    len = strlen(buf) + 4 + 1;
 
     if (Dis.g && Dis.inputLabelFile == NULL) {
-      Dis.inputLabelFile = Malloc(len);
-      strcat(strcpy(Dis.inputLabelFile, buf), ".lab");
+      Dis.inputLabelFile = StrdupCat(buf, ".lab");
     }
     if (Dis.e && Dis.outputLabelFile == NULL) {
-      Dis.outputLabelFile = Malloc(len);
-      strcat(strcpy(Dis.outputLabelFile, buf), ".lab");
+      Dis.outputLabelFile = StrdupCat(buf, ".lab");
     }
     if (Dis.T && Dis.tableFile == NULL) {
-      Dis.tableFile = Malloc(len);
-      strcat(strcpy(Dis.tableFile, buf), ".tab");
+      Dis.tableFile = StrdupCat(buf, ".tab");
     }
 
     Mfree(buf);
@@ -602,9 +598,7 @@ static boolean analyzeLongOption(const char* s) {
 }
 
 static char* dupAndToslash(const char* s) {
-  if (s == NULL) return NULL;
-
-  return toslash(strcpy(Malloc(strlen(s) + 1), s));
+  return s ? toslash(Strdup(s)) : NULL;
 }
 
 static void initFpuOption(void) {

@@ -2,7 +2,7 @@
 // 雑用ルーチンヘッダファイル
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 #ifndef ETC_H
 #define ETC_H
@@ -70,6 +70,8 @@ static inline void charout(int a) {
 
 // 文字列操作
 extern ULONG atox(const char*);
+extern char* Strdup(const char* s);
+extern char* StrdupCat(const char* s1, const char* s2);
 
 // 文字列末尾の \n を \0 で埋める
 static inline void removeTailLf(char* s) {
@@ -81,8 +83,9 @@ static inline void removeTailLf(char* s) {
 
 // 書き込んだ文字列の末尾を返すstrcpy()
 static inline char* strcpy2(char* dst, const char* src) {
-  while ((*dst++ = *src++) != 0)
-    ;
+  while ((*dst++ = *src++) != 0) {
+    // loop
+  }
   return --dst;
 }
 

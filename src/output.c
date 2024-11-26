@@ -1,6 +1,6 @@
 // ソースコードジェネレータ
 // 出力ルーチン下請け
-// Copyright (C) 2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 // This file is part of dis (source code generator).
 //
@@ -50,8 +50,8 @@ typedef struct {
 
   size_t splitByte;
   boolean isSplitMode;  // 指定サイズごとにファイルを .000 .001 と切り換える
-  int fileBlockNum;  // 切り換え中のファイルの .000～ の番号
-  size_t limit;      // 次に切り換えるサイズ(アドレス)
+  int fileBlockNum;     // 切り換え中のファイルの .000～ の番号
+  size_t limit;         // 次に切り換えるサイズ(アドレス)
 
   int lineCount;  // -a
 
@@ -345,8 +345,7 @@ void openOutputFile(char* basename, size_t splitByte, const char* ext) {
   }
 
   if (splitByte == 0) {
-    char* buf = Malloc(strlen(basename) + 1);
-    outputFile.filename = strcpy(buf, basename);
+    outputFile.filename = Strdup(basename);
   } else {
     if (ext == NULL) {
       // .001 .002 ...
@@ -357,9 +356,7 @@ void openOutputFile(char* basename, size_t splitByte, const char* ext) {
       outputFile.filename = createNumberedFilename(outputFile.basename, 0);
     } else {
       // .dat .bss
-      char* buf = Malloc(strlen(basename) + strlen(ext) + 1);
-      strcpy(strcpy2(buf, basename), ext);
-      outputFile.filename = buf;
+      outputFile.filename = StrdupCat(basename, ext);
     }
   }
 

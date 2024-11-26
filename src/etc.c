@@ -2,7 +2,7 @@
 // 雑用ルーチン
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 #include "etc.h"
 
@@ -84,24 +84,29 @@ extern ULONG atox(const char* p) {
   return val;
 }
 
-/*
+// safe strdup
+char* Strdup(const char* s) {
+  char* buf = Malloc(strlen(s) + 1);
+  return strcpy(buf, s);
+}
 
-  safe malloc
+// safe strdup + strcat
+char* StrdupCat(const char* s1, const char* s2) {
+  char* buf = Malloc(strlen(s1) + strlen(s2) + 1);
+  strcpy(strcpy2(buf, s1), s2);
+  return buf;
+}
 
-*/
-extern void* Malloc(size_t size) {
+// safe malloc
+void* Malloc(size_t size) {
   void* p = malloc((size == 0) ? 1 : size);
 
   if (p == NULL) notEnoughMemory();
   return p;
 }
 
-/*
-
-  safe realloc
-
-*/
-extern void* Realloc(void* ptr, size_t size) {
+// safe realloc
+void* Realloc(void* ptr, size_t size) {
   void* rc = realloc(ptr, size);
 
   if (rc == NULL) notEnoughMemory();

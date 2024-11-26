@@ -2,7 +2,7 @@
 // インクルードファイル読み込みモジュール
 // Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 #include "include.h"
 
@@ -126,8 +126,9 @@ static int separate_line(char* ptr, char** symptr, char** psdptr,
   *parptr = p;
 
   /* パラメータの末尾をNULにする */
-  while (*p++ > 0x20)
-    ;
+  while (*p++ > 0x20) {
+    // loop
+  }
   *--p = '\0';
 
   return 1;
@@ -165,7 +166,7 @@ static int getlabel(const IncludeSpec* spec, char* linebuf) {
     p = *spec->labelListPtr + (val & spec->callnoMask);
     if (*p) return 0;  // 同じファンクションコールが定義済み
 
-    *p = strcpy(Malloc(strlen(symptr) + 1), symptr);
+    *p = Strdup(symptr);
     return 1;
   }
 
