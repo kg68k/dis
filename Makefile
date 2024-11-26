@@ -1,49 +1,52 @@
-# Makefile for dis (convert source code from UTF-8 to Shift_JIS)
+# Makefile to convert UTF-8 source files to Shift_JIS.
 #   Do not use non-ASCII characters in this file.
 
-MKDIR_P = mkdir -p
+MKDIR = mkdir
 U8TOSJ = u8tosj
 
+SRCDIR_MK = srcdir.mk
 SRC_DIR = src
-DOC_DIR = docs
-INC_DIR = include
+-include $(SRCDIR_MK)
+
 BLD_DIR = build
 
+dots = $(wildcard $(foreach w,. */. */*/. */*/*/.,$(1)/$(w)))
 
-SRCS = $(filter-out $(SRC_DIR)/avl,$(wildcard $(SRC_DIR)/*)) $(wildcard $(SRC_DIR)/avl/*)
-SJ_SRCS = $(subst $(SRC_DIR)/,$(BLD_DIR)/,$(SRCS))
+SRC_DIRS = $(sort $(dir $(call dots,$(SRC_DIR))))
+BLD_DIRS = $(subst $(SRC_DIR)/,$(BLD_DIR)/,$(SRC_DIRS))
 
-DOCS = $(filter-out $(DOC_DIR)/ports.md,$(wildcard $(DOC_DIR)/*)) $(DOC_DIR)/CHANGELOG.txt
-SJ_DOCS = $(addprefix $(BLD_DIR)/,$(DOCS))
+SRCS = $(filter-out $(SRC_DIRS:%/=%),$(wildcard $(SRC_DIRS:%=%*)))
+SJ_SRCS = $(subst $(SRC_DIR),$(BLD_DIR),$(SRCS))
 
-INCS = $(wildcard $(INC_DIR)/*)
-SJ_INCS = $(addprefix $(BLD_DIR)/,$(INCS))
 
-.PHONY: all directories clean
+.PHONY: all directories srcdir_mk clean
 
-all: directories $(SJ_DOCS) $(SJ_INCS) $(SJ_SRCS)
+all: directories $(SJ_SRCS)
 
-directories: $(BLD_DIR) $(BLD_DIR)/avl $(BLD_DIR)/docs $(BLD_DIR)/include
+directories: $(BLD_DIRS)
 
-$(BLD_DIR) $(BLD_DIR)/avl $(BLD_DIR)/$(DOC_DIR) $(BLD_DIR)/$(INC_DIR):
-	$(MKDIR_P) $@
-
-$(BLD_DIR)/$(DOC_DIR)/CHANGELOG.txt: CHANGELOG.md
-	$(U8TOSJ) < $^ >! $@
-
-$(BLD_DIR)/$(DOC_DIR)/%: $(DOC_DIR)/%
-	$(U8TOSJ) < $^ >! $@
-
-$(BLD_DIR)/$(INC_DIR)/%: $(INC_DIR)/%
-	$(U8TOSJ) < $^ >! $@
+$(BLD_DIRS):
+	$(MKDIR) $@
 
 $(BLD_DIR)/%: $(SRC_DIR)/%
 	$(U8TOSJ) < $^ >! $@
 
 
-clean:
-	-rm -f $(SJ_INCS) $(SJ_DOCS) $(SJ_SRCS)
-	-rmdir $(BLD_DIR)/$(INC_DIR) $(BLD_DIR)/$(DOC_DIR) $(BLD_DIR)/avl $(BLD_DIR)
+# Do not use $(SRCDIR_MK) as the target name to prevent automatic remaking of the makefile.
+srcdir_mk:
+	rm -f $(SRCDIR_MK)
+	echo "SRC_DIR = $(CURDIR)/src" > $(SRCDIR_MK)
 
+
+REV_BLD_DIRS = \
+	$(foreach depth,3 2 1,\
+		$(foreach dir,$(BLD_DIRS),\
+			$(if $(filter $(depth),$(words $(subst /, ,$(dir)))),$(dir))\
+		)\
+	)
+
+clean:
+	rm -f $(SJ_SRCS)
+	-rmdir $(REV_BLD_DIRS:%/=%)
 
 # EOF
