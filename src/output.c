@@ -292,7 +292,7 @@ static void* allocMemory(size_t max, size_t min, size_t add, size_t* base,
   size_t size;
   for (size = max; size >= min; size >>= 1) {
     size_t bufSize = size + add;
-    void* buf = Malloc(bufSize);
+    void* buf = malloc(bufSize);
 
     if (buf) {
       *base = size;
