@@ -172,8 +172,8 @@ static int getlabel(const IncludeSpec* spec, char* linebuf) {
 
   // マクロ名: .macro 実引数名
   if (strcasecmp(psdptr, "macro") == 0) {
-    if ((strlen(symptr) < MAX_MACRO_LEN) && spec->macroPtr) {
-      strcpy(spec->macroPtr, symptr);
+    if (spec->macroPtr && (strlen(symptr) < MAX_MACRO_LEN)) {
+      strncpy(spec->macroPtr, symptr, MAX_MACRO_LEN);
     }
   }
   return 0;

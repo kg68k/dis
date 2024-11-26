@@ -2,7 +2,7 @@
 // ラベル管理モジュール
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 #include "label.h"
 
@@ -50,9 +50,10 @@ boolean registerLabelDebug(address adrs, lblmode mode, address target,
   if (adrs == target) {
     const char* b = result ? "TRUE" : "FALSE";
     lblbuf* lptr = search_label(adrs);
+    unsigned int mode = lptr ? (unsigned int)lptr->mode : 0;
     eprintf("\n%s:%d: registerLabel(adrs=" PRI_ADRS
             ", mode=$%06x) -> %s (mode=$%06x). ",
-            file, line, adrs, (unsigned int)mode, b, (unsigned int)lptr->mode);
+            file, line, adrs, (unsigned int)mode, b, mode);
   }
 
   return result;

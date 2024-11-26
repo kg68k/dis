@@ -2,7 +2,7 @@
 // ソースコードジェネレートモジュール
 // Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 #include "generate.h"
 
@@ -204,9 +204,11 @@ lblbuf* generateSection(char* sfilename, char* section, address end,
     } else if (isTABLE(mode)) {
       pc = tablegen(pc, type);
       if (pc != nextLabel->label) {
-        // テーブル終了条件を end[num]、end[breakonly] にするとラベルを越えてテーブルとして認識され、
-        // tablegen() でまるごと出力されるので、その場合は pc もテーブル終端まで進める
+        // テーブル終了条件を end[num]、end[breakonly] にするとラベルを越えて
+        // テーブルとして認識され、tablegen() でまるごと出力されるので、
+        // その場合は pc もテーブル終端まで進める
         nextLabel = search_label(pc);
+        if (!nextLabel) break;
       }
     } else if (isBSS) {
       bssgen(pc, nextLabel->label, lblmodeOpesize(mode));
@@ -1463,8 +1465,9 @@ static char* operandToLabel(char* p, operand* op) {
   // アウターディスプレースメント
   if (op->exod == 4 && INPROG(op->opval2, op->eaadrs2)) {
     makeSymLabFormula(&slfml, op->opval2);
-    while (*(--p) != ',')
-      ;
+    while (*(--p) != ',') {
+      // loop
+    }
     p += 1;
     p = catSlfml(p, &slfml);
     *p++ = ')';
