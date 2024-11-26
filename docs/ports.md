@@ -3,13 +3,14 @@
 ## Linux
 
 ```
-cmake -S src -B build
+git clone https://github.com/kg68k/dis.git
+cmake -S dis -B build
 cmake --build build
 ```
 
 ## Windows: Visual Studio 2022
 
-「ローカルフォルダーを開く」で src フォルダを開きます。
+「ローカルフォルダーを開く」で dis フォルダを開きます。
 CMake でプロジェクトが構築されるのでそのままビルドしてください。
 
 ただしそのままだとデバッグビルドになるので、リリースビルドを行う場合は下記手順で設定します。
