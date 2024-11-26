@@ -2,7 +2,7 @@
 // 16進変換, String 関数 ヘッダ
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 #ifndef HEX_H
 #define HEX_H
@@ -15,22 +15,22 @@ extern char* itox8_without_0supress(char*, ULONG);
 extern char* itox6_without_0supress(char*, ULONG);
 extern char* itox4_without_0supress(char*, ULONG);
 
-extern char Hex[16];
+extern char HexCharTable[16];
 
 static inline char* itox2(char* buf, ULONG n) {
   if (!Dis.Z || n >= 0x10) {
     // 10 の位
-    *buf++ = Hex[(n >> 4) & 0xf];
+    *buf++ = HexCharTable[(n >> 4) & 0xf];
   }
   // 1 の位
-  *buf++ = Hex[n & 0xf];
+  *buf++ = HexCharTable[n & 0xf];
   *buf = '\0';
   return buf;
 }
 
 static inline char* itox2_without_0supress(char* buf, ULONG n) {
-  *buf++ = Hex[(n >> 4) & 0xf];
-  *buf++ = Hex[n & 0xf];
+  *buf++ = HexCharTable[(n >> 4) & 0xf];
+  *buf++ = HexCharTable[n & 0xf];
   *buf = '\0';
   return buf;
 }

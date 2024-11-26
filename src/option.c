@@ -744,7 +744,7 @@ static void option_switch(int opt) {
       Dis.U = TRUE;
       /* fall through */
     case 'X':
-      toUpperMemory(sizeof(Hex), Hex);
+      toUpperMemory(sizeof(HexCharTable), HexCharTable);
       break;
     case 'V':
       analyzeOption_V(optarg, opt);

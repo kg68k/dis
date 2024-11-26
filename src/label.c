@@ -50,10 +50,10 @@ boolean registerLabelDebug(address adrs, lblmode mode, address target,
   if (adrs == target) {
     const char* b = result ? "TRUE" : "FALSE";
     lblbuf* lptr = search_label(adrs);
-    unsigned int mode = lptr ? (unsigned int)lptr->mode : 0;
+    unsigned int md = lptr ? (unsigned int)lptr->mode : 0;
     eprintf("\n%s:%d: registerLabel(adrs=" PRI_ADRS
             ", mode=$%06x) -> %s (mode=$%06x). ",
-            file, line, adrs, (unsigned int)mode, b, mode);
+            file, line, adrs, (unsigned int)mode, b, md);
   }
 
   return result;

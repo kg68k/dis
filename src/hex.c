@@ -2,7 +2,7 @@
 // 16進変換 , String 関数
 // Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 #include "hex.h"
 
@@ -11,7 +11,7 @@
 #include "estruct.h"
 #include "global.h"
 
-char Hex[16] = "0123456789abcdef";
+char HexCharTable[16] = "0123456789abcdef";
 
 static char* ulongToDecimal(char* buf, ULONG n);
 
@@ -45,7 +45,7 @@ extern char* itox(char* buf, ULONG n, int width) {
       do {
         // 下位桁からテンポラリに変換
         i += 1;
-        *--p = Hex[n & 0xf];
+        *--p = HexCharTable[n & 0xf];
         n >>= 4;
       } while (n);
       do {
@@ -61,7 +61,7 @@ extern char* itox(char* buf, ULONG n, int width) {
 
     for (i = width; --i >= 0;) {
       /* 下位桁から変換 */
-      *--p = Hex[n & 0xf];
+      *--p = HexCharTable[n & 0xf];
       n >>= 4;
     }
   }
@@ -75,7 +75,7 @@ static char* itox_without_0supress(char* buf, ULONG n, int width) {
   int i;
 
   for (i = width; --i >= 0;) {
-    *--p = Hex[n & 0xf];
+    *--p = HexCharTable[n & 0xf];
     n >>= 4;
   }
   *buf = '\0';

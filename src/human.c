@@ -1,6 +1,6 @@
 // ソースコードジェネレータ
 // Human68k
-// Copyright (C) 2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 // This file is part of dis (source code generator).
 //
@@ -258,8 +258,10 @@ static void analyzeDeviceDriver(void) {
     regist_label(dev + DH_TYPE, DATLABEL | WORDSIZE | FORCE | HIDDEN);
 
     // ストラテジルーチンと割り込みルーチンはリロケート情報があるので登録不要
+    // ```
     // regist_label(dev + DH_STRATEGY, DATLABEL | LONGSIZE | FORCE);
     // regist_label(dev + DH_INTERRUPT, DATLABEL | LONGSIZE | FORCE);
+    // ```
 
     regist_label(dev + DH_NAME, DATLABEL | STRING | FORCE | HIDDEN);
     regist_label(dev + DH_SIZE, DATLABEL | UNKNOWN);

@@ -2,7 +2,7 @@
 // ラベルファイルモジュール
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2024 TcbnErik
 
 #include <ctype.h> /* toupper */
 #include <stdio.h>
@@ -117,6 +117,63 @@ static char* untilspace(char* ptr) {
   return ptr;
 }
 
+// データ系の属性文字列を変換する
+static boolean parseLabelAttrD(char** pStr, lblmode* pAttr) {
+  lblmode attr = DATLABEL;
+  char* p = *pStr;
+
+  switch (toupper(*p++)) {
+    default:
+      return FALSE;
+
+    case 'B':
+      attr |= BYTESIZE;
+      break;
+    case 'W':
+      attr |= WORDSIZE;
+      break;
+    case 'L':
+      attr |= LONGSIZE;
+      break;
+    case 'Q':
+      attr |= QUADSIZE;
+      break;
+    case 'F':
+      attr |= SINGLESIZE;
+      break;
+    case 'D':
+      attr |= DOUBLESIZE;
+      break;
+    case 'X':
+      attr |= EXTENDSIZE;
+      break;
+    case 'P':
+      attr |= PACKEDSIZE;
+      break;
+    case 'S':
+      attr |= STRING;
+      break;
+    case 'Z':
+      attr |= ZTABLE;
+      break;
+    case 'U':
+      attr |= UNKNOWN;
+      break;
+
+    case 'R':
+      attr |= RELTABLE;
+      if (toupper(*p) == 'L') {
+        p += 1;
+        attr ^= (RELTABLE ^ RELLONGTABLE);
+      }
+      break;
+  }
+
+  *pStr = p;
+  *pAttr = attr;
+  return TRUE;
+}
+
 // 属性文字列をopesizeに変換する
 //   成功時はattrptrに書き込んでTRUEを返す
 static boolean parseLabelAttribute(char* p, lblmode* attrptr) {
@@ -146,53 +203,7 @@ static boolean parseLabelAttribute(char* p, lblmode* attrptr) {
       break;
 
     case 'D':
-      c = *p++;
-      switch (toupper(c)) {
-        default:
-          return FALSE;
-
-        case 'B':
-          attr |= BYTESIZE;
-          break;
-        case 'W':
-          attr |= WORDSIZE;
-          break;
-        case 'L':
-          attr |= LONGSIZE;
-          break;
-        case 'Q':
-          attr |= QUADSIZE;
-          break;
-        case 'F':
-          attr |= SINGLESIZE;
-          break;
-        case 'D':
-          attr |= DOUBLESIZE;
-          break;
-        case 'X':
-          attr |= EXTENDSIZE;
-          break;
-        case 'P':
-          attr |= PACKEDSIZE;
-          break;
-        case 'S':
-          attr |= STRING;
-          break;
-        case 'Z':
-          attr |= ZTABLE;
-          break;
-        case 'U':
-          attr |= UNKNOWN;
-          break;
-
-        case 'R':
-          attr |= RELTABLE;
-          if (toupper(*p) == 'L') {
-            p += 1;
-            attr ^= (RELTABLE ^ RELLONGTABLE);
-          }
-          break;
-      }
+      if (!parseLabelAttrD(&p, &attr)) return FALSE;
       break;
   }
 
