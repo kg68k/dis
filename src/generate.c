@@ -770,7 +770,7 @@ static void dataout(address pc, ULONG bytes, opesize size) {
 }
 
 // -rオプションのコメントの出力(文字列の16進数ダンプ)
-static void byteout_for_roption(address pc, codeptr store, ULONG bytes) {
+static void byteout_for_roption(codeptr store, ULONG bytes) {
   char buffer[MAX_DC_B_BUFSIZE + 16];
   static char comment[] = ";\t\t";
   comment[0] = Dis.commentStr[0];
@@ -791,7 +791,6 @@ static void byteout_for_roption(address pc, codeptr store, ULONG bytes) {
 
     otherDirective2(comment, buffer);
 
-    pc += bytesPerLine;
     bytes -= bytesPerLine;
   } while (bytes);
 }
@@ -906,8 +905,7 @@ static void strgen(address pc, address pcend) {
     line = (address)(store0 - Dis.Ofst);
     outputData2(line, OpString.dc[BYTESIZE], buffer);
 
-    if (Dis.r)
-      byteout_for_roption(line, store0, (ULONG)(store - (char*)store0));
+    if (Dis.r) byteout_for_roption(store0, (ULONG)(store - (char*)store0));
   }
 }
 #undef ENTERSTR
