@@ -18,6 +18,8 @@ ifeq ($(notdir $(CURDIR)),src)
 $(error do not execute make in src directory)
 endif
 
+HUMAN68K	= true
+
 PROGRAM		= dis.x
 CC		= gcc2
 DEFAULTCFLAGS	= -cc1-stack=600000 -Wall -W -Werror -O2 -fforce-addr -funsigned-char
@@ -87,11 +89,6 @@ SRCS		= analyze.c \
 
 OBJS		= $(addsuffix .o,$(basename $(SRCS)))
 
-DOCS		= analysis.txt CHANGELOG.txt gpl-3.0.txt labelfile.txt README.txt \
-		  table.txt tablefile.txt
-
-INCS		= $(addprefix include/,doscall.mac fefunc.mac iocscall.mac sxcall.mac)
-
 all: $(PROGRAM)
 
 $(PROGRAM): $(OBJS)
@@ -112,18 +109,14 @@ tags: $(HDRS) $(SRCS)
 depend:
 	$(CC) -MM $(CFLAGS) $(SRCS:.y=.c)
 
-ifeq ($(findstring human68k,$(MAKE_VERSION)),human68k)
-bin:
+ifdef HUMAN68K
+PKGTMP = pkgtmp
+
+$(PKGTMP):
 	mkdir $@
 
-bin/$(PROGRAM): bin $(PROGRAM)
-	rm -f $@
-	cp $(PROGRAM) $@
-	lzx -S $@
-
-dis.zip: bin/$(PROGRAM) $(addprefix docs/,$(DOCS)) $(INCS)
-	rm -f $@
-	zip -9 $@ $^
+archive: $(PKGTMP) $(PROGRAM)
+	make -C $(PKGTMP) -f ../Package.mk
 endif
 
 ###
