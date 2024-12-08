@@ -7,12 +7,12 @@ on:
 
 env:
   BUILD_TYPE: MinSizeRel
-  ARCHIVE_FILENAME: dis-${{github.ref_name}}-win-x64.zip
+  ARCHIVE_FILENAME: ${{github.event.repository.name}}-${{github.ref_name}}-win-x64.zip
 
 jobs:
   release:
     runs-on: windows-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     # Allow write permission for action-gh-release
     permissions:
