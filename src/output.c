@@ -1,6 +1,6 @@
 // ソースコードジェネレータ
 // 出力ルーチン下請け
-// Copyright (C) 2024 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 // This file is part of dis (source code generator).
 //
@@ -322,7 +322,7 @@ static void allocBuffer(void) {
 
 // 書き込みバッファを解放する
 static void freeBuffer(void) {
-  if (outputFile.buffer != NULL) free(outputFile.buffer);
+  free(outputFile.buffer);
   outputFile.write = outputFile.buffer = NULL;
 }
 
