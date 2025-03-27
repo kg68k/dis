@@ -4,26 +4,22 @@
 
   Copyright (C) 1991 K.Abe
 
-  E-Mail  k-abe@ics.osaka-u.ac.jp
-  Nifty Serve  PDC02373
+  E-Mail        k-abe@ics.osaka-u.ac.jp
+  Nifty Serve   PDC02373
 
-  Copyright (C) 1997 TcbnErik ... AVL_delete() bugfix patch
-  Copyright (C) 2022 TcbnErik ... style
+  Copyright (C) 1997 TcbnErik ... fix: AVL_delete()
+  Copyright (C) 2025 TcbnErik ... style
 
   This file is included
-    1) to use avl-library
-    2) to make avl-library ( #define AVL_LIBRARY )
-    3) to include avl-library ( #define AVL_INCLUDE )
+    1: to use avl-library
+    2: to make avl-library ( #define AVL_LIBRARY )
+    3: to include avl-library ( #define AVL_INCLUDE )
 */
 
-#ifndef __INCLUDE_AVL_H__
-#define __INCLUDE_AVL_H__
+#ifndef INCLUDE_AVL_H
+#define INCLUDE_AVL_H
 
-#if defined(PROFILE) && defined(__HUMAN68K__)
-#define avl_private extern
-#else
-#define avl_private static
-#endif
+#define avl_private static inline
 
 #ifdef AVL_LIBRARY
 /* to make avl-library */
@@ -83,22 +79,15 @@ avl_public avl_root_node *AVL_create_tree(
     int (*compare_function)(AVL_USERDATA *, AVL_USERDATA *),
     void (*free_function)(AVL_USERDATA *),
     void (*print_function)(AVL_USERDATA *));
-
-#ifndef AVL_NO_DESTROY_TREE
 avl_public void AVL_destroy_tree(avl_root_node *root);
-#endif
 avl_public avl_node *AVL_insert(avl_root_node *root, AVL_USERDATA *data);
 avl_public void AVL_delete(avl_root_node *root, avl_node *delete_node);
 avl_public avl_node *AVL_search(avl_root_node *root, AVL_USERDATA *data);
 avl_public avl_node *AVL_search_next(avl_root_node *root, AVL_USERDATA *data);
-#ifndef AVL_NO_SEARCH_PREVIOUS
 avl_public avl_node *AVL_search_previous(avl_root_node *root,
                                          AVL_USERDATA *data);
-#endif
-#ifndef AVL_NO_CHECK_TREE
 avl_public void AVL_print_tree(avl_root_node *root);
 avl_public void AVL_check_tree(avl_root_node *root);
-#endif
 
 #ifndef AVL_NOMACRO
 #define AVL_get_data(node_ptr) ((node_ptr)->data)
@@ -111,18 +100,11 @@ avl_public void AVL_check_tree(avl_root_node *root);
 
 /* AVL_get_data_safely is function rather than macro
    because macro will evaluate its argument twice.  */
-static
-#ifdef __GNUC__
-    inline
-#endif
-    AVL_USERDATA *
-    AVL_get_data_safely(avl_node *node_ptr) {
+avl_private AVL_USERDATA *AVL_get_data_safely(avl_node *node_ptr) {
   return (node_ptr != NULL ? node_ptr->data : NULL);
 }
 
 #undef avl_public
 #undef avl_private
 
-#endif /* __INCLUDE_AVL_H__ */
-
-/* EOF */
+#endif /* INCLUDE_AVL_H */

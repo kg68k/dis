@@ -4,11 +4,11 @@
 
   Copyright (C) 1991 K.Abe
 
-  E-Mail  k-abe@ics.osaka-u.ac.jp
-  Nifty Serve  PDC02373
+  E-Mail        k-abe@ics.osaka-u.ac.jp
+  Nifty Serve   PDC02373
 
-  Copyright (C) 1997 TcbnErik ... AVL_delete() bugfix patch
-  Copyright (C) 2023 TcbnErik ... style
+  Copyright (C) 1997 TcbnErik ... fix: AVL_delete()
+  Copyright (C) 2025 TcbnErik ... style
 
 */
 
@@ -22,15 +22,7 @@
 
 #include "avl.h"
 
-#ifndef __GNUC__
-#define inline
-#endif /* __GNUC__ */
-
-#if defined(PROFILE) && defined(__HUMAN68K__)
-#define avl_private extern
-#else
-#define avl_private static
-#endif
+#define avl_private static inline
 
 #ifdef AVL_LIBRARY
 /* if compiled as library. */
@@ -49,9 +41,10 @@
 
 #define AVL_BALANCE(node_ptr) ((node_ptr)->right_depth - (node_ptr)->left_depth)
 
-#if 0
-static char avl_version[] = "Generic AVL-tree Library v0.1 (Copyright (C) 1991 K.Abe)";
-#endif
+/*
+static const char avl_version[] = "Generic AVL-tree Library v0.1 (Copyright (C)
+1991 K.Abe)";
+*/
 
 /*
 
@@ -65,9 +58,8 @@ static char avl_version[] = "Generic AVL-tree Library v0.1 (Copyright (C) 1991 K
      (node)  (node_ptr)     (node)  (rotate_node) (node_ptr)
 
 */
-avl_private inline void avl_adjust_parent(avl_root_node *root,
-                                          avl_node *node_ptr,
-                                          avl_node *rotate_node) {
+avl_private void avl_adjust_parent(avl_root_node *root, avl_node *node_ptr,
+                                   avl_node *rotate_node) {
   if (node_ptr->parent == NULL)
     root->avl_tree = rotate_node;
   else if (node_ptr->parent->left == node_ptr)
@@ -81,7 +73,7 @@ avl_private inline void avl_adjust_parent(avl_root_node *root,
   ある節点を根とした場合の木の高さを返す
 
 */
-avl_private inline int avl_depth(avl_node *node_ptr) {
+avl_private int avl_depth(avl_node *node_ptr) {
   if (node_ptr == NULL) return -1;
   return (node_ptr->left_depth > node_ptr->right_depth ? node_ptr->left_depth
                                                        : node_ptr->right_depth);
@@ -92,7 +84,7 @@ avl_private inline int avl_depth(avl_node *node_ptr) {
   節点の左右の部分木の深さを代入する
 
 */
-avl_private inline void avl_calc_node_depth(avl_node *node_ptr) {
+avl_private void avl_calc_node_depth(avl_node *node_ptr) {
   if (node_ptr != NULL) {
     node_ptr->left_depth = avl_depth(node_ptr->left) + 1;
     node_ptr->right_depth = avl_depth(node_ptr->right) + 1;
@@ -118,9 +110,8 @@ avl_private avl_node *avl_balance(avl_root_node *root, avl_node *node_ptr) {
       node_ptr->parent = node_ptr->left;
       node_ptr->left = swap;
       return node_ptr->parent;
-    } else /* if ( AVL_BALANCE( node_ptr->left ) * AVL_BALANCE( node_ptr ) < 0 )
-            */
-    {
+    } else {
+      /* AVL_BALANCE(node_ptr->left) * AVL_BALANCE(node_ptr) < 0 */
       left_node = node_ptr->left;
       left_node->right->parent = node_ptr;
       swap = left_node->right->left;
@@ -149,9 +140,8 @@ avl_private avl_node *avl_balance(avl_root_node *root, avl_node *node_ptr) {
       node_ptr->parent = node_ptr->right;
       node_ptr->right = swap;
       return node_ptr->parent;
-    } else /* if( AVL_BALANCE( node_ptr->right ) * AVL_BALANCE( node_ptr ) < 0 )
-            */
-    {
+    } else {
+      /* AVL_BALANCE(node_ptr->right) * AVL_BALANCE(node_ptr) < 0 */
       right_node = node_ptr->right;
       right_node->left->parent = node_ptr;
       swap = right_node->left->right;
@@ -202,7 +192,7 @@ avl_private void avl_adjust_depth(avl_root_node *root, avl_node *node_ptr) {
   ライブラリ側の節点を作る
 
 */
-avl_private inline avl_node *avl_create_node(void) {
+avl_private avl_node *avl_create_node(void) {
   avl_node *node_ptr;
   if ((node_ptr = malloc(sizeof(avl_node))) == NULL) {
     fputs("create_node: malloc failed.\n", stderr);
@@ -294,7 +284,6 @@ avl_public avl_root_node *AVL_create_tree(int (*compare_func)(AVL_USERDATA *,
   return root;
 }
 
-#ifndef AVL_NO_DESTROY_TREE
 /*
 
   AVL-tree を壊す
@@ -311,7 +300,6 @@ avl_public void AVL_destroy_tree(avl_root_node *root) {
   }
   free(root);
 }
-#endif
 
 /*
 
@@ -498,7 +486,6 @@ avl_public avl_node *AVL_search_next(avl_root_node *root, AVL_USERDATA *data) {
   return NULL;
 }
 
-#ifndef AVL_NO_SEARCH_PREVIOUS
 /*
 
   AVL-tree から data の前を検索する
@@ -533,9 +520,7 @@ avl_public avl_node *AVL_search_previous(avl_root_node *root,
   }
   return NULL;
 }
-#endif
 
-#ifndef AVL_NO_CHECK_TREE
 /*
 
   AVL-tree を表示する
@@ -644,7 +629,3 @@ avl_private int avl_check_tree(avl_root_node *root, avl_node *node_ptr) {
 avl_public void AVL_check_tree(avl_root_node *root) {
   avl_check_tree(root, root->avl_tree);
 }
-
-#endif
-
-// EOF
