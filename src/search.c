@@ -2,7 +2,7 @@
 // 文字列判定
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 #include <stdio.h>
 #include <string.h>
@@ -15,7 +15,7 @@
 
 static void foundstr(address pc) {
   charout('s');
-  regist_label(pc, DATLABEL | STRING);
+  regist_label(pc, DATLABEL | (lblmode)STRING);
 }
 
 /*
@@ -93,7 +93,7 @@ static int check_data_area(address pc, address nlabel, int str_min) {
         foundstr(pc);
         num_of_str++;
         while (depend_address(ltemp) && ltemp + 4 <= nlabel2) ltemp += 4;
-        regist_label(ltemp, DATLABEL | UNKNOWN);
+        regist_label(ltemp, DATLABEL | (lblmode)UNKNOWN);
         pc = ltemp;
         ltemp = MIN(nearadrs(pc), nlabel);
       } else

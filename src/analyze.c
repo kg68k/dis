@@ -2,7 +2,7 @@
 // 自動解析モジュール
 // Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 #include <stdio.h>
 #include <string.h>
@@ -152,7 +152,7 @@ static void printUndefinedInstruction(address pc) {
 // プログラム領域の終端をラベル登録する
 static void foundProgramEnd(address adrs) {
   if (search_label(adrs) == NULL) {
-    regist_label(adrs, DATLABEL | UNKNOWN);
+    regist_label(adrs, DATLABEL | (lblmode)UNKNOWN);
   }
 }
 
@@ -347,7 +347,7 @@ static boolean analyzeInner(address start, analyze_mode mode) {
   disasm* code = &disp.code;
   CodeFlow flow;
   int orib = 0;  // ori.b #??,d0 = $0000????
-  void (*regoplbl)(disasm * code) = Dis.actions->registerOperandLabel;
+  void (*regoplbl)(disasm* code) = Dis.actions->registerOperandLabel;
 
   if (Dis.availableTextEnd <= start) {
     printReason("PCが有効なセクションを外れた。", start);
@@ -515,7 +515,7 @@ boolean analyze(address start, analyze_mode mode) {
 
   if (!success) {
     charout('?');
-    ch_lblmod(start, DATLABEL | UNKNOWN | FORCE);
+    ch_lblmod(start, DATLABEL | FORCE | (lblmode)UNKNOWN);
     return FALSE;
   }
   charout('<');
@@ -533,12 +533,12 @@ static boolean branchToOdd(DisParam* disp, address start, address limit) {
 
   if (Dis.acceptAddressError) {
     // -j: 奇数アドレスへの分岐を未定義命令と「しない」
-    regist_label(code->jmp, DATLABEL | UNKNOWN);
+    regist_label(code->jmp, DATLABEL | (lblmode)UNKNOWN);
     return TRUE;
   }
 
   // 奇数アドレスへの分岐があればプログラム領域ではない
-  ch_lblmod(start, DATLABEL | UNKNOWN | FORCE);
+  ch_lblmod(start, DATLABEL | FORCE | (lblmode)UNKNOWN);
   not_program(start, MIN(code->pc, limit));
   return FALSE;
 }
@@ -561,7 +561,7 @@ static boolean branch_job(DisParam* disp, address start, analyze_mode mode,
   // 分岐先の領域を解析する
   if (!analyze(opval, mode) && mode != ANALYZE_IGNOREFAULT && !Dis.i) {
     // 分岐先がプログラム領域でなければ、呼び出し元も同じ
-    ch_lblmod(start, DATLABEL | UNKNOWN | FORCE);
+    ch_lblmod(start, DATLABEL | FORCE | (lblmode)UNKNOWN);
     not_program(start, MIN(disp->pc, limit));
     return FALSE;
   }
@@ -628,7 +628,7 @@ static boolean analyzeJump(DisParam* disp, CodeFlow* flow, address start,
       // 実際の分岐先は実行時のインデックスレジスタの値次第で、ラベルの場所が
       // プログラムではない可能性もあるので、解析はせずラベル登録だけに留める。
       // (README.txtの「参照されないラベル」と同様のケース)
-      regist_label(code->jmp, DATLABEL | UNKNOWN);
+      regist_label(code->jmp, DATLABEL | (lblmode)UNKNOWN);
       break;
   }
 
@@ -703,9 +703,9 @@ static int analyzeRelativeTable(address table, opesize size,
       // (別のデータ形式かもしれないし、プログラム領域かもしれない)
       // ただしアドレス値だけで判定しているので確実とは言えない
       if (table == ptr)
-        regist_label(ptr, DATLABEL | UNKNOWN | FORCE);
+        regist_label(ptr, DATLABEL | (lblmode)UNKNOWN | FORCE);
       else
-        regist_label(ptr, DATLABEL | UNKNOWN);
+        regist_label(ptr, DATLABEL | (lblmode)UNKNOWN);
       break;
     }
 
@@ -713,7 +713,7 @@ static int analyzeRelativeTable(address table, opesize size,
     printReltblAddress(table, ptr, offs, label);
 #endif
     if (table != label) {
-      regist_label(label, DATLABEL | UNKNOWN);
+      regist_label(label, DATLABEL | (lblmode)UNKNOWN);
     }
     ptr += bytes;
 
@@ -800,7 +800,7 @@ static int hasReltblData(address table) {
 // テーブルの解析は他の解析が終わって判明した限りのラベルが登録されてからとなる。
 void registerReltblOrder(ArrayBuffer* rtbuf, address table, opesize size,
                          boolean isProgram, lblmode mode) {
-  if (mode) regist_label(table, mode | size);
+  if (mode) regist_label(table, mode | (lblmode)size);
 
   if (hasReltblData(table)) {
     ReltblOrder* p = getArrayBufferNewPlace(rtbuf);
@@ -820,7 +820,7 @@ extern void z_table(address table) {
   while (ptr + 4 <= tableend) {
     address label = (address)peekl(ptr + Dis.Ofst);
 
-    regist_label(label, DATLABEL | UNKNOWN);
+    regist_label(label, DATLABEL | (lblmode)UNKNOWN);
     ptr += 4;
     tableend = next(ptr)->label;
   }
@@ -835,7 +835,7 @@ extern void not_program(address from, address to) {
   DisParam disp;
   disasm* code = &disp.code;
 
-  ch_lblmod(from, DATLABEL | UNKNOWN | FORCE);
+  ch_lblmod(from, DATLABEL | FORCE | (lblmode)UNKNOWN);
 
   setDisParamPcPtr(&disp, from, Dis.Ofst);
   disp.pcEnd = to;
@@ -862,45 +862,45 @@ static void regist_data(disasm* code, operand* op) {
 
     case IMMED:
       if (code->size2 == LONGSIZE && INPROG(op->opval, op->eaadrs))
-        regist_label(op->opval, DATLABEL | UNKNOWN);
+        regist_label(op->opval, DATLABEL | (lblmode)UNKNOWN);
       break;
 
     case AbLong:
       if (INPROG(op->opval, op->eaadrs))
-        regist_label(op->opval, DATLABEL | code->size2);
+        regist_label(op->opval, DATLABEL | (lblmode)code->size2);
       break;
 
     case PCDISP:
     case PCIDX:
-      regist_label(op->opval, DATLABEL | code->size2);
+      regist_label(op->opval, DATLABEL | (lblmode)code->size2);
       break;
 
     case AregIDXB:
       if (op->exbd == 4 && INPROG(op->opval, op->eaadrs))
-        regist_label(op->opval, DATLABEL | code->size2);
+        regist_label(op->opval, DATLABEL | (lblmode)code->size2);
       break;
 
     case AregPOSTIDX:
     case AregPREIDX:
       if (op->exbd == 4 && INPROG(op->opval, op->eaadrs))
-        regist_label(op->opval, DATLABEL | LONGSIZE);
+        regist_label(op->opval, DATLABEL | (lblmode)LONGSIZE);
       if (op->exod == 4 && INPROG(op->opval2, op->eaadrs2))
-        regist_label(op->opval2, DATLABEL | code->size2);
+        regist_label(op->opval2, DATLABEL | (lblmode)code->size2);
       break;
 
     case PCIDXB:
       if ((op->flags & OPFLAG_PC_RELATIVE) ||
           (op->exbd == 4 && INPROG(op->opval, op->eaadrs)))
-        regist_label(op->opval, DATLABEL | code->size2);
+        regist_label(op->opval, DATLABEL | (lblmode)code->size2);
       break;
 
     case PCPOSTIDX:
     case PCPREIDX:
       if ((op->flags & OPFLAG_PC_RELATIVE) ||
           (op->exbd == 4 && INPROG(op->opval, op->eaadrs)))
-        regist_label(op->opval, DATLABEL | LONGSIZE);
+        regist_label(op->opval, DATLABEL | (lblmode)LONGSIZE);
       if (op->exod == 4 && INPROG(op->opval2, op->eaadrs2))
-        regist_label(op->opval2, DATLABEL | code->size2);
+        regist_label(op->opval2, DATLABEL | (lblmode)code->size2);
       break;
   }
 }

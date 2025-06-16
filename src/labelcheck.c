@@ -2,7 +2,7 @@
 // ラベルチェック
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 #include <stdio.h>
 
@@ -159,7 +159,7 @@ static void search_change_data(address from, address end) {
     while (dependadrs < nlabel && nlabel < dependadrs + 4) {
       charout('!');
       nadrs->shift = nlabel - dependadrs;
-      regist_label(dependadrs, DATLABEL | UNKNOWN);
+      regist_label(dependadrs, DATLABEL | (lblmode)UNKNOWN);
       nadrs = Next(nadrs);
       nlabel = nadrs->label;
     }

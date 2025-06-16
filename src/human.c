@@ -1,6 +1,6 @@
 // ソースコードジェネレータ
 // Human68k
-// Copyright (C) 2024 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 // This file is part of dis (source code generator).
 //
@@ -254,8 +254,9 @@ static void analyzeDeviceDriver(void) {
       break;
     }
 
-    regist_label(dev + DH_NEXT, DATLABEL | LONGSIZE | FORCE | DEVLABEL);
-    regist_label(dev + DH_TYPE, DATLABEL | WORDSIZE | FORCE | HIDDEN);
+    regist_label(dev + DH_NEXT,
+                 DATLABEL | (lblmode)LONGSIZE | FORCE | DEVLABEL);
+    regist_label(dev + DH_TYPE, DATLABEL | (lblmode)WORDSIZE | FORCE | HIDDEN);
 
     // ストラテジルーチンと割り込みルーチンはリロケート情報があるので登録不要
     // ```
@@ -263,8 +264,8 @@ static void analyzeDeviceDriver(void) {
     // regist_label(dev + DH_INTERRUPT, DATLABEL | LONGSIZE | FORCE);
     // ```
 
-    regist_label(dev + DH_NAME, DATLABEL | STRING | FORCE | HIDDEN);
-    regist_label(dev + DH_SIZE, DATLABEL | UNKNOWN);
+    regist_label(dev + DH_NAME, DATLABEL | (lblmode)STRING | FORCE | HIDDEN);
+    regist_label(dev + DH_SIZE, DATLABEL | (lblmode)UNKNOWN);
 
     analyze((address)peekl(ptr + DH_STRATEGY), ANALYZE_IGNOREFAULT);
     analyze((address)peekl(ptr + DH_INTERRUPT), ANALYZE_IGNOREFAULT);

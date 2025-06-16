@@ -2,7 +2,7 @@
 // ラベル管理モジュール
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 2024 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 #include "label.h"
 
@@ -25,7 +25,7 @@
 #include "./avl/avl.c"
 
 static avl_root_node* LabelRoot;
-static lblbuf Nomore = {(address)-1, NULL, DATLABEL | UNKNOWN, 0, 1};
+static lblbuf Nomore = {(address)-1, NULL, DATLABEL | (lblmode)UNKNOWN, 0, 1};
 
 static int compare(lblbuf* label1, lblbuf* label2) {
   return (ULONG)label1->label - (ULONG)label2->label;
@@ -96,7 +96,7 @@ boolean registerLabel(address adrs, lblmode mode) {
   if (isPROLABEL(mode)) {
     if (isOdd(adrs)) return FALSE;
     if (adrs > Dis.availableTextEnd) {
-      regist_label(adrs, DATLABEL | UNKNOWN);
+      regist_label(adrs, DATLABEL | (lblmode)UNKNOWN);
       return FALSE;
     }
   }

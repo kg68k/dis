@@ -2,7 +2,7 @@
 // テーブル行構文解析・評価
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 // This file is part of dis (source code generator).
 //
@@ -258,7 +258,7 @@ static ParseResult parseStrOrExp(Parser* parser, Expr* result) {
       if (parser->writePtr == NULL) {
         // 解析中ならラベル登録
         // テーブルでないと判定された場合に取り消す処理を追加したほうがよいかも
-        regist_label((address)expr.value.ul, DATLABEL | UNKNOWN);
+        regist_label((address)expr.value.ul, DATLABEL | (lblmode)UNKNOWN);
       }
       *result = createExprLabel(expr.value.ul);
     }
@@ -832,8 +832,7 @@ static StrSpan getKeywordSpan(char first, char* s) {
   char c;
 
   if (isalpha(first) || first == '.') {
-    while (isalnum(c = *p++) || c == '.')
-      ;
+    while (isalnum(c = *p++) || c == '.');
   }
   return (StrSpan){s - 1, p - s};
 }
@@ -898,8 +897,7 @@ static Token fetchToken(Tokenizer* tokenizer) {
   char c, c2;
   tokenizer->_error = NULL;
 
-  while ((c = *tokenizer->_p++) == ' ' || c == '\t' || c == '\n')
-    ;
+  while ((c = *tokenizer->_p++) == ' ' || c == '\t' || c == '\n');
   if (c == '\0') {
     tokenizer->_p -= 1;
     return (Token){TOKEN_NUL, 0};
