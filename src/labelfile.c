@@ -49,7 +49,7 @@ extern void make_labelfile(char* xfilename, char* labelfilename) {
   lblbuf* nadrs;
 
   if ((fp = fopen(labelfilename, "w")) == NULL) {
-    err("\n%s をオープンできません。\n", labelfilename);
+    err("%s をオープンできません。\n", labelfilename);
   }
 
   make_header(fp, xfilename);
@@ -108,23 +108,34 @@ typedef enum {
 } LabelFilePass;
 
 static char* skipspace(char* ptr) {
-  while (*ptr == ' ' || *ptr == '\t') ptr++;
+  while (isblank(*ptr)) ptr += 1;
   return ptr;
 }
 
 static char* untilspace(char* ptr) {
-  while (*ptr && *ptr != ' ' && *ptr != '\t') ptr++;
+  while (*ptr && !isblank(*ptr)) ptr += 1;
   return ptr;
 }
 
-// データ系の属性文字列を変換する
-static boolean parseLabelAttrD(char** pStr, lblmode* pAttr) {
-  lblmode attr = DATLABEL;
-  char* p = *pStr;
+static inline char upper(char c) { return toupper(c); }
 
-  switch (toupper(*p++)) {
+static int error(const char* filename, int line, const char* msg) {
+  eprintf("%s:%d: %s\n", filename, line, msg);
+  return 1;
+}
+
+// データ系の属性文字列を変換する
+static int parseLabelAttrD(const char* filename, int line, const char** pStr,
+                           lblmode* pAttr) {
+  lblmode attr = DATLABEL;
+  const char* p = *pStr;
+
+  if (*p == '\0')
+    return error(filename, line, "属性Dにはサイズの指定が必要です。");
+
+  switch (upper(*p++)) {
     default:
-      return FALSE;
+      return error(filename, line, "属性Dのサイズが不正です。");
 
     case 'B':
       attr |= BYTESIZE;
@@ -160,9 +171,11 @@ static boolean parseLabelAttrD(char** pStr, lblmode* pAttr) {
       attr |= UNKNOWN;
       break;
 
+      // 過去のバージョンでは相対オフセットテーブルをDR、DRL
+      // と規定していたので、互換性のために残す
     case 'R':
       attr |= RELTABLE;
-      if (toupper(*p) == 'L') {
+      if (upper(*p) == 'L') {
         p += 1;
         attr ^= (RELTABLE ^ RELLONGTABLE);
       }
@@ -171,81 +184,85 @@ static boolean parseLabelAttrD(char** pStr, lblmode* pAttr) {
 
   *pStr = p;
   *pAttr = attr;
-  return TRUE;
+  return 0;
 }
 
 // 属性文字列をopesizeに変換する
-//   成功時はattrptrに書き込んでTRUEを返す
-static boolean parseLabelAttribute(char* p, lblmode* attrptr) {
-  lblmode attr = DATLABEL;
-  char c = *p++;
+static int parseLabelAttribute(const char* filename, int line, const char* p,
+                               lblmode* pAttr) {
+  *pAttr = DATLABEL;
 
-  switch (toupper(c)) {
+  if (*p == '\0') return error(filename, line, "属性が指定されていません。");
+
+  switch (upper(*p++)) {
     default:
-      return FALSE;
+      return error(filename, line, "不正な属性です。");
 
     case 'P':
-      attr = PROLABEL;
+      *pAttr = PROLABEL;
       break;
 
     case 'R':
-      c = *p++;
-      switch (toupper(c)) {
+      switch (upper(*p++)) {
         default:
-          return FALSE;
+          return error(filename, line, "属性Rにはサイズの指定が必要です。");
         case 'W':
-          attr |= RELTABLE;
+          *pAttr |= RELTABLE;
           break;
         case 'L':
-          attr |= RELLONGTABLE;
+          *pAttr |= RELLONGTABLE;
           break;
       }
       break;
 
-    case 'D':
-      if (!parseLabelAttrD(&p, &attr)) return FALSE;
-      break;
+    case 'D': {
+      int e = parseLabelAttrD(filename, line, &p, pAttr);
+      if (e) return e;
+    } break;
   }
 
-  while (1) {
-    c = toupper(*p);
-    if (c == 'F') {
-      p += 1;
-      attr |= FORCE;
-    } else if (c == 'H') {
-      p += 1;
-      attr |= HIDDEN;
-    } else {
-      break;
+  // 追加の属性 f, h
+  while (*p && !isblank(*p)) {
+    switch (upper(*p++)) {
+      default:
+        return error(filename, line, "不正な追加の属性です。");
+
+      case 'F':
+        *pAttr |= FORCE;
+        break;
+      case 'H':
+        *pAttr |= HIDDEN;
+        break;
     }
   }
 
-  *attrptr = attr;
-  return TRUE;
+  return 0;
 }
 
+typedef struct {
+  address adrs;
+  lblmode attr;
+  boolean isLower;
+  char* symptr;
+} LabelLine;
+
 // ラベルファイルの1行を解析する
-static int get_line(char* linebuf, int line, address* adrs, char** symptrptr,
-                    boolean* isLower, const char* filename) {
-  address ad = (address)atox(linebuf);
-  char* ptr = skipspace(untilspace(linebuf));
-  lblmode attr = 0;
+static int get_line(const char* filename, int line, char* linebuf,
+                    LabelLine* lblline) {
+  char* atr = skipspace(untilspace(linebuf));
 
-  *isLower = islower(*ptr) ? TRUE : FALSE;
+  lblline->adrs = (address)atox(linebuf);
+  lblline->attr = PROLABEL;
+  lblline->isLower = islower(*atr) ? TRUE : FALSE;
+  lblline->symptr = skipspace(untilspace(atr));
 
-  if (!parseLabelAttribute(ptr, &attr)) {
-    err("\n%s:%d: " PRI_ADRS ": 不正な文字です。", filename, line, ad);
-  }
-
-  *symptrptr = skipspace(untilspace(ptr));
-  *adrs = ad;
-  return attr;
+  return parseLabelAttribute(filename, line, atr, &lblline->attr);
 }
 
 static void regLabel(address adrs, lblmode attr, int line,
                      const char* filename) {
   if (!regist_label(adrs, attr))
-    eprintf("\n%s:%d: " PRI_ADRS " ???. ", filename, line, adrs);
+    eprintf("%s:%d: " PRI_ADRS " ???.\n", filename, line, adrs);
 }
 
 // 相対オフセットテーブルの解析を呼び出す
@@ -266,7 +283,7 @@ static void workLower(address adrs, lblmode attr, int line,
 
   if (isPROLABEL(attr)) {
     if (!analyze(adrs, ANALYZE_IGNOREFAULT)) {
-      eprintf("\n%s:%d: " PRI_ADRS "からはプログラムと見なせません。", filename,
+      eprintf("%s:%d: " PRI_ADRS "からはプログラムと見なせません。\n", filename,
               line, adrs);
     }
     return;
@@ -315,35 +332,36 @@ static void addSymbols(char* s, address adrs) {
 
 static void parseLabelFile(FILE* fp, const char* filename, LabelFilePass pass) {
   int line;
+  int errorCount = 0;
 
   for (line = 1;; line++) {
     char linebuf[1024];
-    char* symptr;
-    address adrs;
-    lblmode attr;
-    boolean isLower;
+    LabelLine lblline;
 
     if (fgets(linebuf, sizeof(linebuf), fp) == NULL) break;
     removeTailLf(linebuf);
     if (!isxdigit(linebuf[0])) continue;
 
-    attr = get_line(linebuf, line, &adrs, &symptr, &isLower, filename);
+    errorCount += get_line(filename, line, linebuf, &lblline);
 
     if (pass == PASS_UPPER_FIRST) {
       // 最初のパスで大文字小文字に関わらずラベルとシンボルを登録する
-      regLabel(adrs, attr, line, filename);
-      addSymbols(symptr, adrs);
+      regLabel(lblline.adrs, lblline.attr, line, filename);
+      addSymbols(lblline.symptr, lblline.adrs);
     } else {
-      if (isLower) workLower(adrs, attr, line, filename);
+      if (lblline.isLower)
+        workLower(lblline.adrs, lblline.attr, line, filename);
     }
   }
+
+  if (errorCount) err("ラベルファイルに%d個のエラーがあります。\n", errorCount);
 }
 
 // ラベルファイルを読み込む
 void read_labelfile(char* filename) {
   FILE* fp = fopen(filename, "rt");
 
-  if (fp == NULL) err("\n%s をオープンできません。\n", filename);
+  if (fp == NULL) err("%s をオープンできません。\n", filename);
 
   parseLabelFile(fp, filename, PASS_UPPER_FIRST);
   rewind(fp);
