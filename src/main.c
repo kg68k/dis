@@ -2,7 +2,7 @@
 // メインルーチン
 // Copyright (C) 1989,1990 K.Abe, 1994 R.ShimiZu
 // All rights reserved.
-// Copyright (C) 2024 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 #include <limits.h>  // PATH_MAX
 #include <stdio.h>
@@ -219,12 +219,12 @@ static void printTarget(char* str, int bits, int size, const TargetTable* tbl) {
 
 */
 static void register_default_labels(void) {
-  regist_label(Dis.beginTEXT, DATLABEL | UNKNOWN);
-  regist_label(Dis.beginDATA, DATLABEL | UNKNOWN);
-  regist_label(Dis.beginBSS, DATLABEL | UNKNOWN);
+  regist_label(Dis.beginTEXT, DATLABEL | (lblmode)UNKNOWN);
+  regist_label(Dis.beginDATA, DATLABEL | (lblmode)UNKNOWN);
+  regist_label(Dis.beginBSS, DATLABEL | (lblmode)UNKNOWN);
 
   /* unregist されないように SYMLABEL を指定 */
-  regist_label(Dis.LAST, DATLABEL | UNKNOWN | SYMLABEL);
+  regist_label(Dis.LAST, DATLABEL | SYMLABEL | (lblmode)UNKNOWN);
 }
 
 // データ領域の中からプログラム領域を探す

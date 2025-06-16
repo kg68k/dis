@@ -2,7 +2,7 @@
 // ラベルファイルモジュール
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 2024 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 #include <ctype.h> /* toupper */
 #include <stdio.h>
@@ -127,7 +127,7 @@ static int error(const char* filename, int line, const char* msg) {
 // データ系の属性文字列を変換する
 static int parseLabelAttrD(const char* filename, int line, const char** pStr,
                            lblmode* pAttr) {
-  lblmode attr = DATLABEL;
+  opesize size = BYTESIZE;
   const char* p = *pStr;
 
   if (*p == '\0')
@@ -138,52 +138,52 @@ static int parseLabelAttrD(const char* filename, int line, const char** pStr,
       return error(filename, line, "属性Dのサイズが不正です。");
 
     case 'B':
-      attr |= BYTESIZE;
+      size = BYTESIZE;
       break;
     case 'W':
-      attr |= WORDSIZE;
+      size = WORDSIZE;
       break;
     case 'L':
-      attr |= LONGSIZE;
+      size = LONGSIZE;
       break;
     case 'Q':
-      attr |= QUADSIZE;
+      size = QUADSIZE;
       break;
     case 'F':
-      attr |= SINGLESIZE;
+      size = SINGLESIZE;
       break;
     case 'D':
-      attr |= DOUBLESIZE;
+      size = DOUBLESIZE;
       break;
     case 'X':
-      attr |= EXTENDSIZE;
+      size = EXTENDSIZE;
       break;
     case 'P':
-      attr |= PACKEDSIZE;
+      size = PACKEDSIZE;
       break;
     case 'S':
-      attr |= STRING;
+      size = STRING;
       break;
     case 'Z':
-      attr |= ZTABLE;
+      size = ZTABLE;
       break;
     case 'U':
-      attr |= UNKNOWN;
+      size = UNKNOWN;
       break;
 
       // 過去のバージョンでは相対オフセットテーブルをDR、DRL
       // と規定していたので、互換性のために残す
     case 'R':
-      attr |= RELTABLE;
+      size = RELTABLE;
       if (upper(*p) == 'L') {
         p += 1;
-        attr ^= (RELTABLE ^ RELLONGTABLE);
+        size = RELLONGTABLE;
       }
       break;
   }
 
   *pStr = p;
-  *pAttr = attr;
+  *pAttr = DATLABEL | (lblmode)size;
   return 0;
 }
 
@@ -207,10 +207,10 @@ static int parseLabelAttribute(const char* filename, int line, const char* p,
         default:
           return error(filename, line, "属性Rにはサイズの指定が必要です。");
         case 'W':
-          *pAttr |= RELTABLE;
+          *pAttr |= (lblmode)RELTABLE;
           break;
         case 'L':
-          *pAttr |= RELLONGTABLE;
+          *pAttr |= (lblmode)RELLONGTABLE;
           break;
       }
       break;

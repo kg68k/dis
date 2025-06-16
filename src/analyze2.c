@@ -2,7 +2,7 @@
 // 自動解析モジュール２
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 #include <stdio.h>
 
@@ -137,7 +137,8 @@ extern void analyze_data(void) {
     /* アドレス依存のデータがあれば、そのアドレスを登録する */
     for (adrs = data_from; (adrs = nearadrs(adrs)) < data_to && adrs < data_to;
          adrs += 4) {
-      regist_label((address)peekl(adrs + Dis.Ofst), DATLABEL | UNKNOWN);
+      regist_label((address)peekl(adrs + Dis.Ofst),
+                   DATLABEL | (lblmode)UNKNOWN);
     }
 
     if (Dis.h && data_from < Dis.availableTextEnd) {
@@ -146,13 +147,13 @@ extern void analyze_data(void) {
 
         if (word1 == 0x4e75) {
           // rts の次のアドレスを登録する
-          regist_label(adrs + 2, DATLABEL | UNKNOWN);
+          regist_label(adrs + 2, DATLABEL | (lblmode)UNKNOWN);
         }
 
         if (Dis.findLinkW) {
           // link 命令に注目
           if ((word1 & 0xfff8) == 0x4e50)
-            regist_label(adrs, DATLABEL | UNKNOWN);
+            regist_label(adrs, DATLABEL | (lblmode)UNKNOWN);
         }
       }
     }

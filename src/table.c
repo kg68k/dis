@@ -2,7 +2,7 @@
 // テーブル処理モジュール
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 2024 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 #include "table.h"
 
@@ -233,7 +233,7 @@ tableend:
   eprintfq("テーブルは" PRI_ADRS "-" PRI_ADRS "(%d個)と判断しました。\n",
            tabletop, pc, loop);
 
-  regist_label(pc, DATLABEL | ENDTABLE | UNKNOWN);
+  regist_label(pc, DATLABEL | ENDTABLE | (lblmode)UNKNOWN);
 
   if (table_ptr->loop == TIMES_AUTOMATIC ||
       table_ptr->loop == TIMES_DECIDE_BY_BREAK) {

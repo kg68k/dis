@@ -2,7 +2,7 @@
 // シンボルネーム管理モジュール
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 #include "symbol.h"
 
@@ -232,7 +232,7 @@ static void registerAddressSymbol(UWORD type, address adrs, codeptr name) {
     // 特定アドレスの初回時はラベルを登録する
     // ラベルファイル読み込み時はすでに登録されているかもしれないし、
     // 登録されていない(ラベルファイルから記述が削除されていた)可能性もある。
-    regist_label(adrs, DATLABEL | UNKNOWN | SYMLABEL);
+    regist_label(adrs, DATLABEL | SYMLABEL | (lblmode)UNKNOWN);
   }
 
   if (Dis.g) {
@@ -389,8 +389,7 @@ symlist* symbol_search2(address adrs, int type) {
   if (symbolptr) {
     symlist* sym = &symbolptr->first;
 
-    while (sym->type != (UWORD)type && (sym = sym->next))
-      ;
+    while (sym->type != (UWORD)type && (sym = sym->next));
     return sym;
   }
   return NULL;
