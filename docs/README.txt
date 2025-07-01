@@ -180,8 +180,8 @@ dis_opt
 
 dis_include
 include
-    　doscall.mac、iocscall.mac、fefunc.mac、sxcall.mac のあるディレクトリのパ
-    ス名を設定しておいて下さい。dis_include の方を先に見ます。
+    　doscall.mac、iocscall.mac、fefunc.mac のあるディレクトリのパス名を設定し
+    ておいて下さい。dis_include の方を先に見ます。
 
     　--include-XXX-mac=file オプションでコマンドラインから違うファイルを読み
     込むように指定したり、--exclude-XXX-mac オプションでファイルを読み込まず、
@@ -189,8 +189,9 @@ include
 
 dis_sxmac
     　SX-Window 用のインクルードファイル(アセンブラ用)のファイル名をフルパスで
-    設定しておけば -u1 オプション指定時に SX-Window の A line trap を SXCALL
-    name のように出力できます。
+    設定しておけば -u1 オプション指定時に SX-Window の A line trap を
+        SX      __TSExit
+    のように出力できます。
 
 dis_header
     　出力ファイルの最初に出力される .include 部を書いたファイルのファイル名を
