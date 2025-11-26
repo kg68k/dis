@@ -65,7 +65,10 @@ void freezeArrayBuffer(ArrayBuffer* ab) {
 
   ab->isFrozen = TRUE;
   ab->capacity = ab->count;
-  if (ab->capacity) ab->buffer = Realloc(ab->buffer, size);
+  if (ab->capacity) {
+    ab->buffer = Realloc(ab->buffer, size);
+    ab->write = (char*)ab->buffer + size;
+  }
 }
 
 extern ULONG atox(const char* p) {
