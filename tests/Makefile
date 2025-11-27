@@ -1,9 +1,9 @@
-# Makefile for dis-test
+# Makefile for dis-tests
 #   Do not use non-ASCII characters in this file.
 
 AS = has060
-ASFLAGS =
-LD = hlk
+ASFLAGS = -w2
+LD ?= hlk
 LDFLAGS =
 DIFF = diff
 DIFFFLAGS = -Naur
@@ -29,12 +29,15 @@ DIFFS = $(addprefix $(DIFF_DIR)/,$(addsuffix .dif,$(TEST2)))
 DIFFS_OK = $(addprefix $(DIFF_DIR)/,$(addsuffix .ok,$(TEST2)))
 
 
-.PHONY: all clean exe dis dif
+.PHONY: all rerun exe dis dif clean
 
 .PRECIOUS: $(OBJ_DIR)/%.x $(DIS_DIR)/%.s
 
 
-all: dif
+all: $(OBJ_DIR) $(DIS_DIR) $(DIFF_DIR) rerun
+
+rerun:
+	make dif
 
 exe: $(BINS)
 
