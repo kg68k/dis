@@ -111,12 +111,16 @@ depend:
 
 ifdef HUMAN68K
 PKGTMP = pkgtmp
+SRCDIR_TXT = ../srcdir.txt
 
 $(PKGTMP):
 	mkdir $@
 
-archive: $(PKGTMP) $(PROGRAM)
-	make -C $(PKGTMP) -f ../Package.mk
+archive: $(PKGTMP) $(PROGRAM) $(SRCDIR_TXT)
+	make -C $(PKGTMP) -f ../Package.mk SRC_DIR=$(shell cat ../srcdir.txt)
+
+$(SRCDIR_TXT):
+	$(error file 'srcdir.txt' created by src2build is required.)
 endif
 
 ###

@@ -1,10 +1,7 @@
 # Makefile for dis (create archive file)
 #  usage: mkdir pkgtmp; make -C pkgtmp -f ../Package.mk
 
-SRCDIR_MK = ../../srcdir.mk
-SRC_DIR = ../../src
--include $(SRCDIR_MK)
-
+SRC_DIR ?= ../../src
 ROOT_DIR = $(SRC_DIR)/..
 BUILD_DIR = ..
 
