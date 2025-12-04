@@ -77,6 +77,7 @@ extern void make_labelfile(char* xfilename, char* labelfilename) {
     }
     if (nadrs->mode & FORCE) fputc('F', fp);
     if (isHIDDEN(nadrs->mode)) fputc('H', fp);
+    if (isABORTLABEL(nadrs->mode)) fputc('A', fp);
 
     {
       symbol* symbolptr = symbol_search(nadrs->label);
@@ -232,6 +233,9 @@ static int parseLabelAttribute(const char* filename, int line, const char* p,
         break;
       case 'H':
         *pAttr |= HIDDEN;
+        break;
+      case 'A':
+        *pAttr |= ABORTLABEL;
         break;
     }
   }

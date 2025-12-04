@@ -76,6 +76,9 @@ $(DIS_DIR)/devhead_loop.s: $(OBJ_DIR)/devhead_loop.x $(DIS) $(DIS_DIR)
 $(DIS_DIR)/imm_comment.s: $(OBJ_DIR)/imm_comment.x $(DIS) $(DIS_DIR)
 	$(DIS) $(DISFLAGS) $< $@ -M
 
+$(DIS_DIR)/inlineparam.s: $(OBJ_DIR)/inlineparam.x $(DIS) $(DIS_DIR) $(SRC_DIR)/inlineparam.lab
+	$(DIS) $(DISFLAGS) $< $@ -g$(SRC_DIR)/inlineparam.lab
+
 $(DIS_DIR)/lab_rw.s: $(OBJ_DIR)/lab_rw.x $(DIS) $(DIS_DIR) $(SRC_DIR)/lab_rw.lab
 	$(DIS) $(DISFLAGS) $< $@ -g$(SRC_DIR)/lab_rw.lab
 
