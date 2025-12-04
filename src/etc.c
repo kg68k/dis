@@ -32,19 +32,22 @@ void initArrayBuffer(ArrayBuffer* ab, size_t bytes) {
   ab->isFrozen = FALSE;
 }
 
+// ArrayBufferの内部バッファのサイズを変更する
+static void reallocArrayBuffer(ArrayBuffer* ab, size_t newCapacity) {
+  const size_t writtenSize = (char*)ab->write - (char*)ab->buffer;
+  ab->buffer = Realloc(ab->buffer, newCapacity * ab->bytes);
+  ab->write = (char*)ab->buffer + writtenSize;
+}
+
 // ArrayBufferの内部バッファを確保または拡大する
 void secureArrayBufferCapacity(ArrayBuffer* ab) {
-  size_t offset;
   size_t cap = ab->capacity;
 
   if (ab->isFrozen) internalError(__FILE__, __LINE__, "ArrayBuffer is frozen.");
 
   if (cap == 0) cap = ARRAYBUFFER_INITIAL_HALF;
   ab->capacity = cap = (cap * ARRAYBUFFER_INCREASE_RATIO);
-
-  offset = (char*)ab->write - (char*)ab->buffer;
-  ab->buffer = Realloc(ab->buffer, cap * ab->bytes);
-  ab->write = (char*)ab->buffer + offset;
+  reallocArrayBuffer(ab, cap);
 }
 
 // ArrayBufferの内部バッファと要素数を取得する
@@ -61,14 +64,12 @@ void* getArrayBufferRawPointer(ArrayBuffer* ab, size_t* countPtr) {
 // ArrayBufferを書き込み禁止にする
 //   内部バッファは使用しているサイズに切り詰められる。
 void freezeArrayBuffer(ArrayBuffer* ab) {
-  size_t size = (char*)ab->write - (char*)ab->buffer;
+  if (!ab->isFrozen) return;
 
   ab->isFrozen = TRUE;
   ab->capacity = ab->count;
-  if (ab->capacity) {
-    ab->buffer = Realloc(ab->buffer, size);
-    ab->write = (char*)ab->buffer + size;
-  }
+  reallocArrayBuffer(ab, ab->capacity);
+  ab->write = NULL;
 }
 
 extern ULONG atox(const char* p) {
