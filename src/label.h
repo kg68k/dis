@@ -2,7 +2,7 @@
 // ラベル管理モジュールヘッダ
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 #ifndef LABEL_H
 #define LABEL_H
@@ -20,6 +20,7 @@ typedef enum {
   ENDTABLE = 0x0010 << 16,  // 1でテーブル終了
   SYMLABEL = 0x0020 << 16,  // 1でシンボル情報あり
   DEVLABEL = 0x0040 << 16,  // 1でデバイスヘッダ
+  ABORTLABEL = 0x0080 << 16,  // 1で命令列中断(データ用)
 
   // OSK専用
   CODEPTR = 0x0400 << 16,  // 1でコードポインタ
@@ -60,6 +61,7 @@ extern int get_Labelnum(void);
 #define isTABLE(a) ((a)&TABLE)
 #define isENDTABLE(a) ((a)&ENDTABLE)
 #define isDEVLABEL(a) ((a)&DEVLABEL)
+#define isABORTLABEL(a) ((a)&ABORTLABEL)
 
 static inline opesize lblbufOpesize(lblbuf* lptr) { return lptr->mode & 0xff; }
 static inline opesize lblmodeOpesize(lblmode mode) { return mode & 0xff; }

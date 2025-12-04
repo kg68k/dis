@@ -88,7 +88,7 @@ static boolean registerNewLabel(address adrs, lblmode mode) {
 */
 boolean registerLabel(address adrs, lblmode mode) {
   lblbuf* lptr;
-  const lblmode protect = ENDTABLE | SYMLABEL | DEVLABEL;
+  const lblmode protect = ENDTABLE | SYMLABEL | DEVLABEL | ABORTLABEL;
 
   if (adrs < Dis.beginTEXT || adrs > Dis.LAST) return FALSE;
 

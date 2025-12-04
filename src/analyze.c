@@ -412,8 +412,15 @@ static boolean analyzeInner(address start, analyze_mode mode) {
     } else
       orib = 0;
 
-    if (limit == disp.pc && prolabel(limit)) {
-      return TRUE;  // 既に解析済みのプログラム領域とぶつかった
+    if (limit == disp.pc) {
+      lblbuf* ptr = search_label(limit);
+      if (ptr) {
+        // 既に解析済みのプログラム領域とぶつかれば、この領域もプログラム領域
+        if (isPROLABEL(ptr->mode)) return TRUE;
+
+        // ラベルファイルで命令列アボートの指定があれば、ここまでをプログラム領域と認める
+        if (isABORTLABEL(ptr->mode)) return TRUE;
+      }
     }
 
     if ((disp.pc > limit) ||  // 最初は code.op.opval は初期化されないけど大丈夫
