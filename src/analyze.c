@@ -924,7 +924,7 @@ static void unregist_data(disasm* code, operand* op) {
 
     case IMMED:
       if (code->size2 != LONGSIZE) break;
-      /* FALLTHRU */
+      // FALLTHRU
     case AbLong:
       if (INPROG(op->opval, op->eaadrs)) unregist_label(op->opval);
       break;

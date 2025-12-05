@@ -2,7 +2,7 @@
 // 大域変数ヘッダ
 // Copyright (C) 1989,1990 K.Abe
 // All rights reserved.
-// Copyright (C) 1997-2023 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 #ifndef GLOBAL_H
 #define GLOBAL_H
@@ -19,7 +19,6 @@
 #define ENV_DIS_OPT "DIS_OPT"
 #define ENV_dis_opt "dis_opt"
 #define ENV_dis_header "dis_header"
-#define ENV_dis_sxmac "dis_sxmac"
 #define ENV_dis_include "dis_include"
 #define ENV_include "include"
 
@@ -133,14 +132,20 @@ typedef struct {
   char* inputLabelFile;
   char* outputLabelFile;
   char* tableFile;
-  char* headerFile;
+  const char* headerFile;
 
   // インクルードファイル
-  const char* doscallMac;      // --include-doscall-mac=<file>
+  const char* includePath;     // --include=<path>
+  uint8_t doscall;             // --doscall-mac
+  uint8_t iocscall;            // --iocscall-mac
+  uint8_t fefunc;              // --fefunc-mac
+  uint8_t sxcall;              // --sxcall-mac
+  const char* doscallMac;      // --include-doscall-mac=<path>
+  const char* iocscallMac;     // --include-iocscall-mac=<path>
+  const char* fefuncMac;       // --include-fefunc-mac=<path>
+  const char* sxcallMac;       // --include-sxcall-mac=<path>
   const char* doscallMacPath;  // 読み込んだファイルのフルパス名
-  const char* iocscallMac;     // --include-doscall-mac=<file>
   const char* iocscallMacPath;
-  const char* fefuncMac;  // --include-fefunc-mac=<file>
   const char* fefuncMacPath;
   const char* sxcallMacPath;
 
@@ -163,12 +168,12 @@ typedef struct {
   uint8_t c;           // ラベルチェックを行わない
   uint8_t d;           // デバイスドライバの時に指定
   uint8_t e;           // ラベルファイルの出力
-  uint8_t f;  // バイト操作命令の不定バイトのチェックをしない
-  uint8_t g;  // ラベルファイルを読み込む
-  uint8_t h;  // データ領域中の$4e75(rts)の次のアドレスに注目する
-  uint8_t i;  // 分岐先で未定義命令があってもデータ領域と見なさない
+  uint8_t f;           // バイト操作命令の不定バイトのチェックをしない
+  uint8_t g;           // ラベルファイルを読み込む
+  uint8_t h;           // データ領域中の$4e75(rts)の次のアドレスに注目する
+  uint8_t i;           // 分岐先で未定義命令があってもデータ領域と見なさない
   uint8_t acceptAddressError;  // -j
-  uint8_t k;  // 命令の中を指すラベルはないものと見なす
+  uint8_t k;                   // 命令の中を指すラベルはないものと見なす
   uint8_t l;  // プログラム領域が見つからなくなるまで何度も捜すことをしない
   uint8_t p;  // データ領域中のプログラム領域を判別しない
   uint8_t q;  // メッセージを出力しない
@@ -176,22 +181,22 @@ typedef struct {
   uint8_t outputSymbol;      // -s
   uint8_t acceptUnusedTrap;  // -u
   uint8_t v;                 // 単なる逆アセンブルリストの出力
-  uint8_t x;  // 実際のオペコードを16進数のコメントで付ける
+  uint8_t x;                 // 実際のオペコードを16進数のコメントで付ける
   uint8_t y;  // 全てのデータ領域をプログラム領域でないか確かめることをしない
 
   uint8_t mnemonicAbbreviation;  // -A
   uint8_t B;                     // bra の後でも改行する
   uint8_t symbolColonNum;        // -C
-  uint8_t D;  // データセクション中にもプログラムを認める
-  uint8_t E;  // バイト操作命令の不定バイトの書き換えチェックをしない
+  uint8_t D;                     // データセクション中にもプログラムを認める
+  uint8_t E;             // バイト操作命令の不定バイトの書き換えチェックをしない
   uint8_t dbraToDbf;     // -F
   uint8_t argAfterCall;  // -G
-  uint8_t I;  // 命令の中を差すラベルのアドレスを表示する
-  uint8_t M;  // 即値命令にコメントをつける
-  uint8_t N;  // サイズがデフォルトなら付けない
-  uint8_t Q;  // 環境変数 DIS_OPT, dis_opt を参照しない
-  uint8_t T;  // テーブル記述ファイルを読み込む
-  uint8_t U;  // ニーモニックを大文字で出力する
+  uint8_t I;             // 命令の中を差すラベルのアドレスを表示する
+  uint8_t M;             // 即値命令にコメントをつける
+  uint8_t N;             // サイズがデフォルトなら付けない
+  uint8_t Q;             // 環境変数 DIS_OPT, dis_opt を参照しない
+  uint8_t T;             // テーブル記述ファイルを読み込む
+  uint8_t U;             // ニーモニックを大文字で出力する
   uint8_t backtrackReason;  // -V
   uint8_t Y;                // 16進数を大文字で出力する
   uint8_t Z;                // 16進数をゼロサプレスする
@@ -214,7 +219,6 @@ typedef struct {
   uint8_t reltblZero;
   uint8_t stripIncludePath;
   uint8_t suppressDollar;  // -Z1
-  uint8_t sxWindow;        // -u1
   uint8_t movemZero;
 
   // 動作モード等

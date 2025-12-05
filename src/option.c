@@ -39,14 +39,22 @@ enum {
   HEAD_OPT_ENABLED,
 };
 
+typedef struct {
+  char s[22];
+  uint8_t type;
+  uint8_t hasParam;  // --header= など、引数を持つオプション
+  int val;  // --fpsp(TRUE)、--no-fpsp(FALSE) など、コード共用のための値
+} LongOption;
+
 // static 関数プロトタイプ
 static void option_switch(int opt);
 static void initFpuOption(void);
+static const char* ensurePathSpecified(const char* s, const LongOption* lo);
 static char* dupAndToslash(const char* s);
 static int ck_atoi(const char* s);
 static int getOptionInt(const char* s, int min, int max, int optionChar);
 static int getOptionInt0(const char* s, int max, int optionChar);
-static int getLongOptionInt0(const char* s, int max, const char* optionName);
+static int getLongOptionInt0(const char* s, int max, const LongOption* lo);
 static NORETURN void usage(void) GCC_NORETURN;
 static void printTitle(void);
 
@@ -195,7 +203,7 @@ void analyze_args(int argc, char* argv[]) {
 
   /* ラベルファイル/テーブルファイル名を作成する */
   {
-    char* file = strcmp("-", Dis.outputFile) ? Dis.outputFile : "aout";
+    char* file = (strcmp("-", Dis.outputFile) == 0) ? "aout" : Dis.outputFile;
     char* buf = dupAndToslash(file);
 
     {
@@ -346,7 +354,7 @@ static void analyzeOption_s(const char* s, int optionChar) {
 
 static void analyzeOption_u(const char* s) {
   Dis.acceptUnusedTrap = TRUE;
-  if (s && (ck_atoi(s) == 1)) Dis.sxWindow = TRUE;
+  if (s && (ck_atoi(s) == 1)) Dis.sxcall = TRUE;
 }
 
 static void analyzeOption_w(const char* s, int optionChar) {
@@ -431,17 +439,19 @@ static void analyzeOption_deterministic(const char* optionName) {
   d->stripIncludePath = TRUE;
 }
 
-static void analyzeOption_reltblZero(const char* s, const char* optionName) {
-  Dis.reltblZero = getLongOptionInt0(s, RELTBL_ZERO_ALL, optionName);
+static void analyzeOption_reltblZero(const char* s, const LongOption* lo) {
+  Dis.reltblZero = getLongOptionInt0(s, RELTBL_ZERO_ALL, lo);
 }
 
-static void analyzeOption_movemZero(const char* s, const char* optionName) {
-  Dis.movemZero = getLongOptionInt0(s, 1, optionName);
+static void analyzeOption_movemZero(const char* s, const LongOption* lo) {
+  Dis.movemZero = getLongOptionInt0(s, 1, lo);
 }
 
 enum {
   LONGOPT_VERSION,
   LONGOPT_HELP,
+
+  LONGOPT_DETERMINISTIC,
   LONGOPT_OVERWRITE,
   LONGOPT_FPSP,
   LONGOPT_ISP,
@@ -451,48 +461,58 @@ enum {
   LONGOPT_OLD_SYNTAX,
   LONGOPT_INREAL,
   LONGOPT_HEADER,
+
+  LONGOPT_INCLUDE_DOSCALL_MAC,
   LONGOPT_DOSCALL_MAC,
+  LONGOPT_INCLUDE_IOCSCALL_MAC,
   LONGOPT_IOCSCALL_MAC,
+  LONGOPT_INCLUDE_FEFUNC_MAC,
   LONGOPT_FEFUNC_MAC,
+  LONGOPT_INCLUDE_SXCALL_MAC,
+  LONGOPT_SXCALL_MAC,
+
+  LONGOPT_INCLUDE,
   LONGOPT_STRIP_PATH,
-  LONGOPT_DETERMINISTIC,
   LONGOPT_RELTBL_ZERO,
   LONGOPT_MOVEM_ZERO,
   LONGOPT_FILETYPE,
 };
 
-typedef struct {
-  char s[22];
-  uint8_t type;
-  uint8_t hasParam;  // --header= など、引数を持つオプション
-  int val;  // --fpsp(TRUE)、--no-fpsp(FALSE) など、コード共用のための値
-} LongOption;
-
 static const LongOption longOptions[] = {
     {"version", LONGOPT_VERSION, FALSE, 0},
-    {"help", LONGOPT_HELP, FALSE, 0},  //
+    {"help", LONGOPT_HELP, FALSE, 0},
+
+    {DETERMINISTIC, LONGOPT_DETERMINISTIC, FALSE, 0},
     {"overwrite", LONGOPT_OVERWRITE, FALSE, 0},
     {"fpsp", LONGOPT_FPSP, FALSE, TRUE},
     {"no-fpsp", LONGOPT_FPSP, FALSE, FALSE},
-    {"isp", LONGOPT_ISP, FALSE, TRUE},  //
+    {"isp", LONGOPT_ISP, FALSE, TRUE},
     {"no-isp", LONGOPT_ISP, FALSE, FALSE},
-    {"no-fpu", LONGOPT_NO_FPU, FALSE, 0},  //
-    {"no-mmu", LONGOPT_NO_MMU, FALSE, 0},  //
-    {"sp", LONGOPT_SP, FALSE, TRUE},       //
+    {"no-fpu", LONGOPT_NO_FPU, FALSE, 0},
+    {"no-mmu", LONGOPT_NO_MMU, FALSE, 0},
+    {"sp", LONGOPT_SP, FALSE, TRUE},
     {"a7", LONGOPT_SP, FALSE, FALSE},
     {"old-syntax", LONGOPT_OLD_SYNTAX, FALSE, TRUE},
     {"new-syntax", LONGOPT_OLD_SYNTAX, FALSE, FALSE},
     {"inreal", LONGOPT_INREAL, FALSE, TRUE},
     {"real", LONGOPT_INREAL, FALSE, FALSE},
-    {"header", LONGOPT_HEADER, TRUE, 0},  //
-    {"include-doscall-mac", LONGOPT_DOSCALL_MAC, TRUE, 0},
-    {"exclude-doscall-mac", LONGOPT_DOSCALL_MAC, FALSE, 0},
-    {"include-iocscall-mac", LONGOPT_IOCSCALL_MAC, TRUE, 0},
-    {"exclude-iocscall-mac", LONGOPT_IOCSCALL_MAC, FALSE, 0},
-    {"include-fefunc-mac", LONGOPT_FEFUNC_MAC, TRUE, 0},
-    {"exclude-fefunc-mac", LONGOPT_FEFUNC_MAC, FALSE, 0},
+    {"header", LONGOPT_HEADER, TRUE, 0},
+
+    {"include-doscall-mac", LONGOPT_INCLUDE_DOSCALL_MAC, TRUE, TRUE},
+    {"doscall-mac", LONGOPT_DOSCALL_MAC, FALSE, TRUE},
+    {"no-doscall-mac", LONGOPT_DOSCALL_MAC, FALSE, FALSE},
+    {"include-iocscall-mac", LONGOPT_INCLUDE_IOCSCALL_MAC, TRUE, TRUE},
+    {"iocscall-mac", LONGOPT_IOCSCALL_MAC, FALSE, TRUE},
+    {"no-iocscall-mac", LONGOPT_IOCSCALL_MAC, FALSE, FALSE},
+    {"include-fefunc-mac", LONGOPT_INCLUDE_FEFUNC_MAC, TRUE, TRUE},
+    {"fefunc-mac", LONGOPT_FEFUNC_MAC, FALSE, TRUE},
+    {"no-fefunc-mac", LONGOPT_FEFUNC_MAC, FALSE, FALSE},
+    {"include-sxcall-mac", LONGOPT_INCLUDE_SXCALL_MAC, TRUE, TRUE},
+    {"sxcall-mac", LONGOPT_SXCALL_MAC, FALSE, TRUE},
+    {"no-sxcall-mac", LONGOPT_SXCALL_MAC, FALSE, FALSE},
+
+    {"include", LONGOPT_INCLUDE, TRUE, 0},
     {"strip-include-path", LONGOPT_STRIP_PATH, FALSE, 0},
-    {DETERMINISTIC, LONGOPT_DETERMINISTIC, FALSE, 0},
     {"reltbl-zero", LONGOPT_RELTBL_ZERO, TRUE, 0},
     {"movem-zero", LONGOPT_MOVEM_ZERO, TRUE, 0},
     {"x", LONGOPT_FILETYPE, FALSE, FILETYPE_X},
@@ -541,6 +561,10 @@ static boolean analyzeLongOption(const char* s) {
     case LONGOPT_HELP:
       usage();
       break;
+
+    case LONGOPT_DETERMINISTIC:
+      analyzeOption_deterministic(lo->s);
+      break;
     case LONGOPT_OVERWRITE:
       Dis.overwrite = TRUE;
       break;
@@ -566,28 +590,45 @@ static boolean analyzeLongOption(const char* s) {
       Dis.inreal = lo->val;
       break;
     case LONGOPT_HEADER:
-      Dis.headerFile = dupAndToslash(param);
+      Dis.headerFile = ensurePathSpecified(param, lo);
       break;
+
+    case LONGOPT_INCLUDE_DOSCALL_MAC:
+      Dis.doscallMac = ensurePathSpecified(param, lo);
+      // FALLTHRU
     case LONGOPT_DOSCALL_MAC:
-      Dis.doscallMac = dupAndToslash(param);
+      Dis.doscall = lo->val;
       break;
+    case LONGOPT_INCLUDE_IOCSCALL_MAC:
+      Dis.iocscallMac = ensurePathSpecified(param, lo);
+      // FALLTHRU
     case LONGOPT_IOCSCALL_MAC:
-      Dis.iocscallMac = dupAndToslash(param);
+      Dis.iocscall = lo->val;
       break;
+    case LONGOPT_INCLUDE_FEFUNC_MAC:
+      Dis.fefuncMac = ensurePathSpecified(param, lo);
+      // FALLTHRU
     case LONGOPT_FEFUNC_MAC:
-      Dis.fefuncMac = dupAndToslash(param);
+      Dis.fefunc = lo->val;
+      break;
+    case LONGOPT_INCLUDE_SXCALL_MAC:
+      Dis.sxcallMac = ensurePathSpecified(param, lo);
+      // FALLTHRU
+    case LONGOPT_SXCALL_MAC:
+      Dis.sxcall = lo->val;
+      break;
+
+    case LONGOPT_INCLUDE:
+      Dis.includePath = ensurePathSpecified(param, lo);
       break;
     case LONGOPT_STRIP_PATH:
       Dis.stripIncludePath = TRUE;
       break;
-    case LONGOPT_DETERMINISTIC:
-      analyzeOption_deterministic(lo->s);
-      break;
     case LONGOPT_RELTBL_ZERO:
-      analyzeOption_reltblZero(param, lo->s);
+      analyzeOption_reltblZero(param, lo);
       break;
     case LONGOPT_MOVEM_ZERO:
-      analyzeOption_movemZero(param, lo->s);
+      analyzeOption_movemZero(param, lo);
       break;
     case LONGOPT_FILETYPE:
       Dis.fileType = lo->val;
@@ -595,6 +636,12 @@ static boolean analyzeLongOption(const char* s) {
       break;
   }
   return TRUE;
+}
+
+static const char* ensurePathSpecified(const char* s, const LongOption* lo) {
+  if (s == NULL || s[0] == '\0')
+    err("パスが指定されていません(--%s)。\n", lo->s);
+  return s;
 }
 
 static char* dupAndToslash(const char* s) {
@@ -742,7 +789,7 @@ static void option_switch(int opt) {
       break;
     case 'U':
       Dis.U = TRUE;
-      /* fall through */
+      // FALLTHRU
     case 'X':
       toUpperMemory(sizeof(HexCharTable), HexCharTable);
       break;
@@ -795,8 +842,8 @@ static int getOptionInt0(const char* s, int max, int optionChar) {
 
 // ロングオプションの引数を int に変換して返す
 //   0～max の範囲でなければエラー終了する。
-static int getLongOptionInt0(const char* s, int max, const char* optionName) {
-  return getIntFromOptarg(s, 0, max, '-', optionName);
+static int getLongOptionInt0(const char* s, int max, const LongOption* lo) {
+  return getIntFromOptarg(s, 0, max, '-', lo->s);
 }
 
 static int ck_atoi(const char* s) {
@@ -819,8 +866,10 @@ static const char usageText[] =
     "-z base,exec    実行ファイルを base からのバイナリファイルとみなし、exec から解析する\n"
     "-T[file]        テーブル記述ファイルを読み込む\n"
     "-Y              インクルードファイルをカレントディレクトリからも検索する\n"
-    "--include-XXX-mac=file  インクルードファイルの指定 (XXX = doscall, iocscall, fefunc)\n"
-    "--exclude-XXX-mac       インクルードファイルを読み込まない\n"
+    "--include=path  インクルードファイルの検索パスを指定する\n"
+    "--include-XXX-mac=file  インクルードファイルの指定 (XXX = doscall, iocscall, fefunc, sxcall)\n"
+    "--XXX-mac       インクルードファイルを読み込む(初期値=doscall, iocscall, fefunc)\n"
+    "--no-XXX-mac    インクルードファイルを読み込まない(初期値=sxcall)\n"
     "--header=file   ヘッダをファイルから読み込む(環境変数 " ENV_dis_header " より優先)\n"
 #ifdef PRINT_HIDDEN_OPTIONS
     "--x             実行ファイルを X 形式と見なす\n"
@@ -848,17 +897,13 @@ static const char usageText[] =
     "\n"
     "解析オプション:\n"
     "-c              ラベルチェックを行わない\n"
-    "-f              バイト操作命令の不定バイトのチェック($00 or $ff "
-    "?)をしない\n"
+    "-f              バイト操作命令の不定バイトのチェック($00 or $ff ?)をしない\n"
     "-h              データ領域中の $4e75(rts) の次のアドレスに注目する\n"
     "-i              分岐先で未定義命令があってもデータ領域と見なさない\n"
-    "-j              "
-    "アドレスエラーが起こるであろう命令を未定義命令と見なさない\n"
+    "-j              アドレスエラーが起こるであろう命令を未定義命令と見なさない\n"
     "-k              命令の中を指すラベルはないものと見なす\n"
-    "-l              "
-    "プログラム領域が見つからなくなるまで何度も探すことをしない\n"
-    "-n num          "
-    "文字列として判定する最小の長さ。0なら判定しない(初期値=3)\n"
+    "-l              プログラム領域が見つからなくなるまで何度も探すことをしない\n"
+    "-n num          文字列として判定する最小の長さ。0なら判定しない(初期値=3)\n"
     "-p              データ領域中のプログラム領域を判別しない\n"
     "-u[num]         未使用の A,F line trap を未定義命令と見なさない(1:SX-Window 対応)\n"
     "-y              全てのデータ領域をプログラム領域でないか確かめることをしない\n"

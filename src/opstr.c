@@ -1,6 +1,6 @@
 // ソースコードジェネレータ
 // オペコード文字列
-// Copyright (C) 2023 TcbnErik
+// Copyright (C) 2025 TcbnErik
 
 // This file is part of dis (source code generator).
 //
@@ -242,7 +242,7 @@ OpStringTable OpString = {
     "DOS",
     "IOCS",
     "FPACK",
-    "SXCALL"  //
+    "SX"  //
 
 };
 

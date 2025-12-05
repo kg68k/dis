@@ -214,26 +214,19 @@ static const IncludeSpec iocscallSpec = {
     &Dis.iocscallMac, OpString.iocscall  //
 };
 static const IncludeSpec sxcallSpec = {
-    (1 << 12) - 1, 0xa000,  //
-    &Dis.sxLabel,  &Dis.sxcallMacPath,
-    NULL,          OpString.sxcall  //
+    (1 << 12) - 1,  0xa000,  //
+    &Dis.sxLabel,   &Dis.sxcallMacPath,
+    &Dis.sxcallMac, OpString.sxcall  //
 };
 
 // 各種インクルードファイルを読み込む
 static void readIncludeFilesHuman(void) {
   IncludeEnvs env = {getenv(ENV_dis_include), getenv(ENV_include)};
 
-  readInludeFileFromEnv(&doscallSpec, &env);
-  readInludeFileFromEnv(&iocscallSpec, &env);
-  readInludeFileFromEnv(&fefuncSpec, &env);
-
-  if (Dis.sxWindow) {
-    const char* sxmac = getenv(ENV_dis_sxmac);
-    if (sxmac && sxmac[0]) {
-      if (!readIncludeFile(&sxcallSpec, sxmac))
-        err("%s をオープンできません。\n", sxmac);
-    }
-  }
+  if (Dis.doscall) readInludeFileFromEnv(&doscallSpec, &env);
+  if (Dis.iocscall) readInludeFileFromEnv(&iocscallSpec, &env);
+  if (Dis.fefunc) readInludeFileFromEnv(&fefuncSpec, &env);
+  if (Dis.sxcall) readInludeFileFromEnv(&sxcallSpec, &env);
 }
 
 // デバイスドライバの解析

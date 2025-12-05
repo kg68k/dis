@@ -127,18 +127,19 @@ src/ports/*     移植用 Makefile と解説
 
 ●インクルードファイルの設定
 
-　dis は起動するとまず DOS/IOCS/FPACK ファンクションコールの名称を収得する為に
-各コールを定義したインクルードファイルを読み込みます。それぞれのファイルは
-doscall.mac/iocscall.mac/fefunc.mac に対応し、必ず存在しないと逆アセンブルがで
-きません。それらの存在するパス名を環境変数 dis_include もしくは include に設定
-して下さい。dis_include の方から優先してファイルが検索されます。
+　dis は起動するとまず、各種ファンクションコールの名称を収得するためにそれぞれ
+のコールを定義したインクルードファイル(アセンブラ用マクロファイル)を読み込みま
+す。
+    doscall.mac …… DOSコール
+    iocscall.mac …… IOCSコール
+    fefunc.mac …… FEFUNC (FPACK)コール
+    sxcall.mac …… SX コール(-u1 または --sxcall-mac オプション指定時のみ)
 
-　ただし -Y オプションを指定した場合は、それらのパスに先立ってカレントディレク
-トリからファイルを検索します。
-
-　また、SX-Window 対応モードで起動した場合は SX ファンクションコールの名称を収
-得するために sxcall.mac も読み込みます。ファイル名をフルパスで環境変数
-dis_sxmac に設定して下さい。
+　これらのファイルが存在するパス名を環境変数 dis_include または include に設定
+して下さい。dis_include の方から優先してファイルが検索されます。-Y オプション
+を指定した場合は、それより先にカレントディレクトリから検索します。また、
+--include=path オプションを指定した場合はカレントディレクトリや環境変数を見ず
+に指定したディレクトリだけから検索します。
 
 　fefunc.mac は XC ver 1 の fefunc.h に相当します。dis version 2.79 までは
 fefunc.h か、それを fefunc.dis にリネームしたものを参照していましたが、XC ver
@@ -180,34 +181,32 @@ dis_opt
 
 dis_include
 include
-    　doscall.mac、iocscall.mac、fefunc.mac のあるディレクトリのパス名を設定し
-    ておいて下さい。dis_include の方を先に見ます。
+    　doscall.mac、iocscall.mac、fefunc.mac、sxcall.mac のあるディレクトリのパ
+    ス名を設定しておいて下さい。dis_include の方を先に見ます。
 
     　--include-XXX-mac=file オプションでコマンドラインから違うファイルを読み
-    込むように指定したり、--exclude-XXX-mac オプションでファイルを読み込まず、
-    ファンクションコールの逆アセンブルも行わないようにすることができます。
-
-dis_sxmac
-    　SX-Window 用のインクルードファイル(アセンブラ用)のファイル名をフルパスで
-    設定しておけば -u1 オプション指定時に SX-Window の A line trap を
-        SX      __TSExit
-    のように出力できます。
+    込むように指定したり、--no-XXX-mac オプションでファイルを読み込まず、ファ
+    ンクションコールの逆アセンブルも行わないようにすることができます。
 
 dis_header
     　出力ファイルの最初に出力される .include 部を書いたファイルのファイル名を
     フルパスで設定しておけば、そのファイルの内容がデフォルトの .include の代わ
-    りに挿入されます。デフォルトの出力内容は
+    りに挿入されます。デフォルトの出力内容は以下のようになります(ファイル名は
+    実際に読み込んだファイルのフルパスになります)。
         .include        doscall.mac
         .include        iocscall.mac
         .include        fefunc.mac
-    です(ファイル名は実際に読み込んだファイルのフルパスになります)。
 
-    　また、-u1 オプション指定時に環境変数 dis_sxmac を設定している場合には
-        .include        $dis_sxmac
-    も追加されます。
+    　また、-u1 または --sxcall-mac オプション指定時は以下も追加されます。
+        .include        sxcall.mac
 
     　--header=file オプションでコマンドラインから違うファイルを読み込むように
     指定することができます。
+
+(廃止) dis_sxmac
+    　この環境変数は dis version 5.0.0 で廃止されました。doscall.mac や
+    iocscall.mac と同じ場所から、ファイル名 sxcall.mac が検索されます。また、
+    --include-sxcall-mac=file オプションでパスを指定することもできます。
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -407,8 +406,9 @@ dis_header
     　なお、使用されているかどうかの判断は、doscall.mac、fefunc.mac にシンボル
     が存在するかどうかによります。
 
-    　-u1 の時、SX-Window 対応となります。環境変数 dis_sxmac をセットしておけ
-    ば、SX-Window のファンクションコールをマクロ形式で出力します。
+    　-u1 を指定すると SX-Window 対応となり、sxcall.mac を読み込みます
+    (--sxcall-mac の指定とほぼ同じですが、-u1 の場合は未定義のファンクションコ
+    ール番号を未定義命令と見なしません)。
 
 -y
     　「text セクション中の全てのデータ領域をとりあえず逆アセンブルしてみて、
@@ -499,23 +499,45 @@ dis_header
 
 ●ファンクションコールに関するオプション
 
---exclude-doscall-mac
---exclude-iocscall-mac
---exclude-fefunc-mac
-    　それぞれ DOS コール、IOCS コール、FEFUNC コールを認識しないようにしま
-    す。DOS/FEFUNC コールは全て未定義命令か .dc 疑似命令(-u 指定時)に、IOCS
-    コールは moveq + trap #15 で出力されます。
+-Y
+    　カレントディレクトリからもインクルードファイルを検索する。
 
-    　このオプションは X680x0/Human68k 以外の環境の実行ファイルを逆アセンブル
-    する時に、余計な解釈を行わないようにする為に使用します。
+    　通常は環境変数 dis_include や include で指定されたパスにあるインクルード
+    ファイルを読み込みますが、このオプションを指定するとカレントディレクトリに
+    あるファイルを優先して読み込みます。カレントになければ環境変数で指定された
+    パスを検索します。
+
+--include=path
+  　インクルードファイルの検索パスを指定する。
+
+  　指定したパスからインクルードファイルを検索します。環境変数 dis_include や
+  include は見なくなります。このオプションは -Y オプションより優先されます。
+
+--doscall-mac   (デフォルト)
+--iocscall-mac  (デフォルト)
+--fefunc-mac    (デフォルト)
+--sxcall-mac
+    　それぞれのファンクションコールを認識するようにします。-u1 オプションを指
+    定した場合は同時に --sxcall-mac も有効になります。
+
+--no-doscall-mac
+--no-iocscall-mac
+--no-fefunc-mac
+--no-sxcall-mac  (デフォルト)
+    　それぞれのファンクションコールを認識しないようにします。X680x0/Human68k
+    以外の環境の実行ファイルを逆アセンブルする時に、余計な解釈を行わないように
+    するために使用します。
+
+    　指定時は DOS/FEFUNC/SX コールは全て未定義命令か .dc 疑似命令(-u 指定時)
+    に、IOCSコールは moveq + trap #15 で出力されます。
 
 --include-doscall-mac=file
 --include-iocscall-mac=file
 --include-fefunc-mac=file
-    　それぞれ DOS コール、IOCS コール、FEFUNC コールのマクロ/ファンクションコ
-    ール番号を定義したファイルを指定します。file にファイル名を記述して下さ
-    い。無指定時は環境変数 dis_include か include で指定したディレクトリにある
-    ファイルが読み込まれます。
+--include-sxcall-mac=file
+    　それぞれのファンクションコール番号を定義したファイルを指定します。file
+    にファイル名を記述して下さい。無指定時は環境変数 dis_include か include で
+    指定したディレクトリにあるファイルが読み込まれます。
 
     　このオプションは環境変数 dis_include、include よりも優先されます。
 
@@ -684,7 +706,7 @@ dis_header
 
         リターン命令: rte  rtd  rts  rtr
         DOS コール: _EXIT  _EXIT2  _KEEPPR  _KILL_PR
-        SXCALL: __TSExit (ExitToShell)
+        SX コール: __TSExit (ExitToShell)
 
 -M
     　cmpi、move、addi.b、subi.b #imm および pack、unpk にコメントを付ける。
@@ -882,14 +904,6 @@ dis_header
 
     　表示されるのは、dis がプログラムと認めなかった理由、およびそのアドレス等
     です。作者にしか意味が分からないかも知れません(^_^;)
-
--Y
-    　カレントディレクトリからも include ファイルを検索する。
-
-    　通常は環境変数 dis_include や include で指定されたパスにあるインクルード
-    ファイルを読み込みますが、このオプションを指定するとカレントディレクトリに
-    あるファイルを優先して読み込みます。カレントになければ環境変数で指定された
-    パスを検索します。
 
 --deterministic
     　決定論的逆アセンブルを行う。
@@ -1450,7 +1464,7 @@ noreturn 属性)、ハードコーディングしてあります。
     DOS  _EXIT2
     DOS  _KEEPPR
     DOS  _KILLPR
-    SXCALL  ExitToShell
+    SX   __TSExit (ExitToShell)
 
 　64ビット整数(.q)は倍精度実数の内部表現と同じ形式で出力されます。
 
