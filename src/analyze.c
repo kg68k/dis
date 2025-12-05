@@ -122,17 +122,6 @@ static boolean prolabel(address adrs) {
   return (ptr && isPROLABEL(ptr->mode)) ? TRUE : FALSE;
 }
 
-/*
-
-  既に DATLABEL として登録済みかどうか調べる
-
-*/
-static boolean datlabel(address adrs) {
-  lblbuf* ptr = search_label(adrs);
-
-  return (ptr && isDATLABEL(ptr->mode)) ? TRUE : FALSE;
-}
-
 // 指定したアドレスより後のデータラベルのアドレスを返す
 //   そのようなラベルが無ければ Dis.availableTextEnd を返す
 static address limitadrs(address adrs) {
@@ -339,7 +328,6 @@ enum {
 // ・すでにプログラム領域と記録されていた
 // ・プログラム領域のラベルに到達した
 // ・rtsなどのリターン命令
-// ・-Gオプション指定時に、bsrなどのコール命令直後がデータ領域
 static boolean analyzeInner(address start, analyze_mode mode) {
   address limit;
   address neardepend;
@@ -476,11 +464,6 @@ static boolean analyzeInner(address start, analyze_mode mode) {
 
       case JSROP:  // JSR, BSR
         if (!analyzeJump(&disp, &flow, start, mode, limit)) return FALSE;
-
-        if (Dis.argAfterCall && datlabel(disp.pc)) {
-          // -G : サブルーチンコールの直後に引数を置くことを認める
-          return TRUE;
-        }
         break;
 
       case RTSOP:

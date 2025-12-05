@@ -167,7 +167,7 @@ static void analyzeHeadOption(int argc, char* argv[]) {
 void analyze_args(int argc, char* argv[]) {
   static const char optionlist[] =
       "a::b:cde::fg::hijklm:n:o:pq::rs::u::vw:xyz:"
-      "ABC::DEFGIK:L:MNP:QR:S::T::UV:W:XYZ::#:-:";
+      "ABC::DEFIK:L:MNP:QR:S::T::UV:W:XYZ::#:-:";
 
   analyzeHeadOption(argc, argv);
 
@@ -751,9 +751,6 @@ static void option_switch(int opt) {
     case 'F':
       Dis.dbraToDbf = TRUE;
       break;
-    case 'G':
-      Dis.argAfterCall = TRUE;
-      break;
     case 'I':
       Dis.I = TRUE;
       break;
@@ -909,7 +906,6 @@ static const char usageText[] =
     "-y              全てのデータ領域をプログラム領域でないか確かめることをしない\n"
     "-D              データセクション中にもプログラムを認める\n"
     "-E              バイト操作命令の不定バイトの書き換えチェックをしない\n"
-    "-G              サブルーチンコールの直後に引数を置くプログラムを解析する\n"
     "-R num          未使用フィールドのチェック項目の指定(ビット指定、初期値=15)\n"
     "                +1 未使用レジスタフィールド(mul[us].l, ftst.x, c{inv,push}a)のチェック\n"
     "                +2 拡張アドレッシングでのサプレスされたレジスタフィールドのチェック\n"

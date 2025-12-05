@@ -190,7 +190,6 @@ typedef struct {
   uint8_t D;                     // データセクション中にもプログラムを認める
   uint8_t E;             // バイト操作命令の不定バイトの書き換えチェックをしない
   uint8_t dbraToDbf;     // -F
-  uint8_t argAfterCall;  // -G
   uint8_t I;             // 命令の中を差すラベルのアドレスを表示する
   uint8_t M;             // 即値命令にコメントをつける
   uint8_t N;             // サイズがデフォルトなら付けない
