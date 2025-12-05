@@ -13,6 +13,8 @@
   * `--iocscall-mac`を追加、`--exclude-iocscall-mac`を`--no-iocscall-mac`に変更。
   * `--fefunc-mac`を追加、`--exclude-fefunc-mac`を`--no-fefunc-mac`に変更。
   * `--include-sxcall-mac=<path>`、`--sxcall-mac`、`--no-sxcall-mac`を追加。
+* ラベルファイルからラベルを削除し、プログラム領域の解析による登録も行われなかった場合に
+  存在しないラベル名が出力されていたのを、直前のラベル名+オフセットで出力するようにした。
 
 
 ## 4.06 (2025-11-28)

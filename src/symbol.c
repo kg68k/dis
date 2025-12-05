@@ -82,8 +82,24 @@ void makeInProgSymLabFormula(SymbolLabelFormula* slfml, address adrs) {
   makeSymLabShift(slfml, adrs, shift);
 }
 
+// ラベルとして登録されていないアドレスのラベル式を作成する
+//   ラベルファイルからラベルが削除され、プログラム領域の解析も行われなかった場合に
+//   実際に参照されるラベルが登録されないので、直前のラベルからのオフセット形式にする
+static void makeUnregisteredSymLab(SymbolLabelFormula* slfml, address adrs) {
+  lblbuf* lptr = previous(adrs - 1);
+
+  if (lptr == NULL) {
+    // Dis.beginTEXTがラベルファイルに関係なく常に登録されるので
+    // 最低でもそのラベルが見つかるはずだが、念のため
+    slfml->symbol = "";
+    makeBareLabel(slfml, adrs);
+    return;
+  }
+
+  makeSymLabShift(slfml, lptr->label, adrs - lptr->label);
+}
+
 // ラベルorシンボル名(±オフセット)形式のラベル式を作成する
-//   ラベルが登録されていなかった場合はFALSEを返す
 void makeSymLabFormula(SymbolLabelFormula* slfml, address adrs) {
   lblbuf* lptr;
 
@@ -106,8 +122,7 @@ void makeSymLabFormula(SymbolLabelFormula* slfml, address adrs) {
   // プログラム範囲内
   lptr = search_label(adrs);
   if (lptr == NULL) {
-    slfml->symbol = "";
-    makeBareLabel(slfml, adrs);
+    makeUnregisteredSymLab(slfml, adrs);
   } else {
     makeSymLabShift(slfml, adrs - lptr->shift, lptr->shift);
   }

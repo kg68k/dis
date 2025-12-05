@@ -192,6 +192,21 @@ extern lblbuf* search_label(address adrs) {
   return AVL_get_data_safely(AVL_search(LabelRoot, &search_data));
 }
 
+// adrs の次のラベルバッファへのポインタを返す
+extern lblbuf* previous(address adrs) {
+  lblbuf search_data;
+  avl_node* node;
+
+  if (adrs == (address)-1) return &Nomore;
+
+  search_data.label = adrs;
+
+  if ((node = AVL_search_previous(LabelRoot, &search_data)) == NULL)
+    return &Nomore;
+  else
+    return AVL_get_data(node);
+}
+
 /*
 
   adrs の次のラベルバッファへのポインタを返す
