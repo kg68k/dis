@@ -122,17 +122,6 @@ static boolean prolabel(address adrs) {
   return (ptr && isPROLABEL(ptr->mode)) ? TRUE : FALSE;
 }
 
-/*
-
-  既に DATLABEL として登録済みかどうか調べる
-
-*/
-static boolean datlabel(address adrs) {
-  lblbuf* ptr = search_label(adrs);
-
-  return (ptr && isDATLABEL(ptr->mode)) ? TRUE : FALSE;
-}
-
 // 指定したアドレスより後のデータラベルのアドレスを返す
 //   そのようなラベルが無ければ Dis.availableTextEnd を返す
 static address limitadrs(address adrs) {
@@ -339,7 +328,6 @@ enum {
 // ・すでにプログラム領域と記録されていた
 // ・プログラム領域のラベルに到達した
 // ・rtsなどのリターン命令
-// ・-Gオプション指定時に、bsrなどのコール命令直後がデータ領域
 static boolean analyzeInner(address start, analyze_mode mode) {
   address limit;
   address neardepend;
@@ -412,8 +400,15 @@ static boolean analyzeInner(address start, analyze_mode mode) {
     } else
       orib = 0;
 
-    if (limit == disp.pc && prolabel(limit)) {
-      return TRUE;  // 既に解析済みのプログラム領域とぶつかった
+    if (limit == disp.pc) {
+      lblbuf* ptr = search_label(limit);
+      if (ptr) {
+        // 既に解析済みのプログラム領域とぶつかれば、この領域もプログラム領域
+        if (isPROLABEL(ptr->mode)) return TRUE;
+
+        // ラベルファイルで命令列アボートの指定があれば、ここまでをプログラム領域と認める
+        if (isABORTLABEL(ptr->mode)) return TRUE;
+      }
     }
 
     if ((disp.pc > limit) ||  // 最初は code.op.opval は初期化されないけど大丈夫
@@ -469,11 +464,6 @@ static boolean analyzeInner(address start, analyze_mode mode) {
 
       case JSROP:  // JSR, BSR
         if (!analyzeJump(&disp, &flow, start, mode, limit)) return FALSE;
-
-        if (Dis.argAfterCall && datlabel(disp.pc)) {
-          // -G : サブルーチンコールの直後に引数を置くことを認める
-          return TRUE;
-        }
         break;
 
       case RTSOP:
@@ -917,7 +907,7 @@ static void unregist_data(disasm* code, operand* op) {
 
     case IMMED:
       if (code->size2 != LONGSIZE) break;
-      /* FALLTHRU */
+      // FALLTHRU
     case AbLong:
       if (INPROG(op->opval, op->eaadrs)) unregist_label(op->opval);
       break;

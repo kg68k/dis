@@ -1,1123 +1,1001 @@
-*****************************************************************
-*	sxcall.mac - SX-WINDOW アセンブラ用定数定義		*
-*	Public Domain : written by Masaru Oki (Jun 29 1991)	*
-*****************************************************************
+.nlist
 
-* マクロ定義
-SXCALL	macro	Label
-	.dc.w	Label
-	endm
+;sxcall.mac - RUKA assembler macro for X680x0/Human68k by TcbnErik
+;Last-Modified: 2025-07-24
+;
+;Copying and distribution of this file, with or without modification,
+;are permitted in any medium without royalty provided the copyright
+;notice and this notice are preserved.  This file is offered as-is,
+;without any warranty.
 
-*		equ	$a000
-*		equ	$a001
-*		equ	$a002
-NewHandle1	equ	$a003
-ReallocHandle1	equ	$a004
-DisposeHandle1	equ	$a005
-*		equ	$a006
-*		equ	$a007
-*		equ	$a008
-NewPtr1		equ	$a009
-DisposePtr1	equ	$a00a
-*		equ	$a00b
-*		equ	$a00c
-*		equ	$a00d
-InitZone	equ	$a00e
-*		equ	$a00f
-*ZCompactMem?	equ	$a010
-*ZPurgeMem?	equ	$a011
-*		equ	$a012
-*		equ	$a013
-*		equ	$a014
-*		equ	$a015
-*		equ	$a016
-*		equ	$a017
-MemError	equ	$a018
-*		equ	$a019
-*		equ	$a01a
-*		equ	$a01b
-GetZone		equ	$a01c
-SetZone		equ	$a01d
-NewPtr		equ	$a01e
-MoreMasters	equ	$a01f
-*		equ	$a020
-NewHandle	equ	$a021
-CompactMem	equ	$a022
-*		equ	$a023
-*		equ	$a024
-*		equ	$a025
-*		equ	$a026
-*		equ	$a027
-SetGrowZone	equ	$a028
-*		equ	$a029
-*		equ	$a02a
-*		equ	$a02b
-*		equ	$a02c
-*		equ	$a02d
-PtrZone		equ	$a02e
-DisposePtr	equ	$a02f
-GetPtrSize	equ	$a030
-SetPtrSize	equ	$a031
-*		equ	$a032
-*		equ	$a033
-*		equ	$a034
-*		equ	$a035
-*		equ	$a036
-HandleZone	equ	$a037
-DisposeHandle	equ	$a038
-GetHandleSize	equ	$a039
-SetHandleSize	equ	$a03a
-EmptyHandle	equ	$a03b
-ReallocHandle	equ	$a03c
-MoveHHi		equ	$a03d
-HGetState	equ	$a03e
-HSetState	equ	$a03f
-HLock		equ	$a040
-HUnlock		equ	$a041
-HPurge		equ	$a042
-HNoPurge	equ	$a043
-HSetRBit	equ	$a044
-HClrRBit	equ	$a045
-*		equ	$a046
-*		equ	$a047
-*		equ	$a048
-*		equ	$a049
-*		equ	$a04a
-*		equ	$a04b
-*		equ	$a04c
-*		equ	$a04d
-*		equ	$a04e
-*		equ	$a04f
-*		equ	$a050
-*		equ	$a051
-*		equ	$a052
-*		equ	$a053
-*		equ	$a054
-*		equ	$a055
-*		equ	$a056	* $a056 から $a067 までは FSX.X 1.02 では未定義
-*		equ	$a057
-*		equ	$a058
-*		equ	$a059
-*		equ	$a05a
-*		equ	$a05b
-*		equ	$a05c
-*		equ	$a05d
-*		equ	$a05e
-*		equ	$a05f
-*		equ	$a060
-*		equ	$a061
-*		equ	$a062
-*		equ	$a063
-*		equ	$a064
-*		equ	$a065
-*		equ	$a066
-*		equ	$a067	* $a056 から $a067 までは FSX.X 1.02 では未定義
-VInstall	equ	$a068
-VRemove		equ	$a069
-InitCursor	equ	$a06a
-ShowCursor	equ	$a06b
-HideCursor	equ	$a06c
-SetCursor	equ	$a06d
-ObscureCursor	equ	$a06e
-ShieldCursor	equ	$a06f
-*		equ	$a070
-*		equ	$a071
-*		equ	$a072
-*		equ	$a073
-*		equ	$a074
-*		equ	$a075
-*		equ	$a076	* $a076 から $a085 までは FSX.X 1.02 では未定義
-*		equ	$a077
-*		equ	$a078
-*		equ	$a079
-*		equ	$a07a
-*		equ	$a07b
-*		equ	$a07c
-*		equ	$a07d
-*		equ	$a07e
-*		equ	$a07f
-*		equ	$a080
-*		equ	$a081
-*		equ	$a082
-*		equ	$a083
-*		equ	$a084
-*		equ	$a085	* $a076 から $a085 までは FSX.X 1.02 では未定義
-*		equ	$a086
-*		equ	$a087
-*		equ	$a088
-*		equ	$a089
-*		equ	$a08a
-*		equ	$a08b
-*		equ	$a08c
-*		equ	$a08d
-*		equ	$a08e
-*		equ	$a08f
-*		equ	$a090
-*		equ	$a091
-*		equ	$a092	* $a092 から $a099 までは FSX.X 1.02 では未定義
-*		equ	$a093
-*		equ	$a094
-*		equ	$a095
-*		equ	$a096
-*		equ	$a097
-*		equ	$a098
-*		equ	$a099	* $a092 から $a099 までは FSX.X 1.02 では未定義
-*		equ	$a09a
-*		equ	$a09b
-*		equ	$a09c
-*		equ	$a09d
-*		equ	$a09e
-*		equ	$a09f
-*		equ	$a0a0
-*		equ	$a0a1
-InitEvents	equ	$a0a2
-*		equ	$a0a3
-PostEvent	equ	$a0a4
-GetOSEvent	equ	$a0a5
-OSEventAvail	equ	$a0a6
-GetMouse	equ	$a0a7
-ButtonLeft	equ	$a0a8
-ButtonRight	equ	$a0a9
-StillLeftDown	equ	$a0aa
-StillRightDown	equ	$a0ab
-WaitLeftMouseUp	equ	$a0ac
-WaitRightMouseUp equ	$a0ad
-*		equ	$a0ae
-TickCount	equ	$a0af
-GetDblTime	equ	$a0b0
-GetCaretTime	equ	$a0b1
-FlushEvents	equ	$a0b2
-*		equ	$a0b3
-*		equ	$a0b4
-SetDblTime	equ	$a0b5
-SetCaretTime	equ	$a0b6
-SetWaitCursor	equ	$a0b7
-ResetCursor	equ	$a0b8
-*		equ	$a0b9	* $a0b9 から $a0d8 までは FSX.X 1.02 では未定義
-*		equ	$a0ba
-*		equ	$a0bb
-*		equ	$a0bc
-*		equ	$a0bd
-*		equ	$a0be
-*		equ	$a0bf
-*		equ	$a0c0
-*		equ	$a0c1
-*		equ	$a0c2
-*		equ	$a0c3
-*		equ	$a0c4
-*		equ	$a0c5
-*		equ	$a0c6
-*		equ	$a0c7
-*		equ	$a0c8
-*		equ	$a0c9
-*		equ	$a0ca
-*		equ	$a0cb
-*		equ	$a0cc
-*		equ	$a0cd
-*		equ	$a0ce
-*		equ	$a0cf
-*		equ	$a0d0
-*		equ	$a0d1
-*		equ	$a0d2
-*		equ	$a0d3
-*		equ	$a0d4
-*		equ	$a0d5
-*		equ	$a0d6
-*		equ	$a0d7
-*		equ	$a0d8	* $a0b9 から $a0d8 までは FSX.X 1.02 では未定義
-InitResources	equ	$a0d9
-*		equ	$a0da
-CreateResFile	equ	$a0db
-AddResource	equ	$a0dc
-RmveResource	equ	$a0dd
-*		equ	$a0de
-*		equ	$a0df
-OpenResFile	equ	$a0e0
-GetResource	equ	$a0e1
-CloseResFile	equ	$a0e2
-*		equ	$a0e3
-UseResFile	equ	$a0e4
-ReleaseResource	equ	$a0e5
-DetachResource	equ	$a0e6
-UniqueID	equ	$a0e7
-UpdateResFile	equ	$a0e8
-*		equ	$a0e9
-CurResFile	equ	$a0ea
-LastResFile	equ	$a0eb
-*		equ	$a0ec
-*		equ	$a0ed	* $a0ed から $a12c までは FSX.X 1.02 では未定義
-*		equ	$a0ee
-*		equ	$a0ef
-*		equ	$a0f0
-*		equ	$a0f1
-*		equ	$a0f2
-*		equ	$a0f3
-*		equ	$a0f4
-*		equ	$a0f5
-*		equ	$a0f6
-*		equ	$a0f7
-*		equ	$a0f8
-*		equ	$a0f9
-*		equ	$a0fa
-*		equ	$a0fb
-*		equ	$a0fc
-*		equ	$a0fd
-*		equ	$a0fe
-*		equ	$a0ff
-*		equ	$a100
-*		equ	$a101
-*		equ	$a102
-*		equ	$a103
-*		equ	$a104
-*		equ	$a105
-*		equ	$a106
-*		equ	$a107
-*		equ	$a108
-*		equ	$a109
-*		equ	$a10a
-*		equ	$a10b
-*		equ	$a10c
-*		equ	$a10d
-*		equ	$a10e
-*		equ	$a10f
-*		equ	$a110
-*		equ	$a111
-*		equ	$a112
-*		equ	$a113
-*		equ	$a114
-*		equ	$a115
-*		equ	$a116
-*		equ	$a117
-*		equ	$a118
-*		equ	$a119
-*		equ	$a11a
-*		equ	$a11b
-*		equ	$a11c
-*		equ	$a11d
-*		equ	$a11e
-*		equ	$a11f
-*		equ	$a120
-*		equ	$a121
-*		equ	$a122
-*		equ	$a123
-*		equ	$a124
-*		equ	$a125
-*		equ	$a126
-*		equ	$a127
-*		equ	$a128
-*		equ	$a129
-*		equ	$a12a
-*		equ	$a12b
-*		equ	$a12c	* $a0ed から $a12c までは FSX.X 1.02 では未定義
-OpenPort	equ	$a12d
-*		equ	$a12e
-ClosePort	equ	$a12f
-InitPort	equ	$a130
-SetPort		equ	$a131
-GetPort		equ	$a132
-CopyPort	equ	$a133
-*		equ	$a134
-*PortSize	equ	$a135
-MovePortTo	equ	$a136
-*		equ	$a137
-SetClip		equ	$a138
-GetClip		equ	$a139
-ClipRect	equ	$a13a
-SetOrigin	equ	$a13b
-PortSize	equ	$a13c
-SetPortBits	equ	$a13d
-LocalToGlobal	equ	$a13e
-GlobalToLocal	equ	$a13f
-PenNormal	equ	$a140
-ShowPen		equ	$a141
-HidePen		equ	$a142
-PenSize		equ	$a143
-PenMode		equ	$a144
-PenPat		equ	$a145
-ColorPat	equ	$a146
-ForeColor	equ	$a147
-BackColor	equ	$a148
-ColorBit	equ	$a149
-GetPen		equ	$a14a
-*		equ	$a14b
-*		equ	$a14c
-InitFonts	equ	$a14d
-*		equ	$a14e
-*		equ	$a14f
-*		equ	$a150
-MoveRect	equ	$a151
-OffsetRect	equ	$a152
-InsetRect	equ	$a153
-SectRect	equ	$a154
-UnionRect	equ	$a155
-PtInRect	equ	$a156
-EqualRect	equ	$a157
-EmptyRect	equ	$a158
-*		equ	$a159
-NewRgn		equ	$a15a
-DisposeRgn	equ	$a15b
-OpenRgn		equ	$a15c
-CloseRgn	equ	$a15d
-SetEmptyRgn	equ	$a15e
-RectRgn		equ	$a15f
-CopyRgn		equ	$a160
-MoveRgn		equ	$a161
-OffsetRgn	equ	$a162
-InsetRgn	equ	$a163
-SectRgn		equ	$a164
-UnionRgn	equ	$a165
-DiffRgn		equ	$a166
-XorRgn		equ	$a167
-PtInRgn		equ	$a168
-RectInRgn	equ	$a169
-EqualRgn	equ	$a16a
-EmptyRgn	equ	$a16b
-*		equ	$a16c
-InitBitmap	equ	$a16d
-MoveTo		equ	$a16e
-Move		equ	$a16f
-LineTo		equ	$a170
-Line		equ	$a171
-FrameRect	equ	$a172
-PaintRect	equ	$a173
-FrameOval	equ	$a174
-PaintOval	equ	$a175
-FrameRoundRect	equ	$a176
-PaintRountRect	equ	$a177
-FrameArc	equ	$a178	* FSX.X 1.02 ではインプリメントされていない
-PaintArc	equ	$a179	* FSX.X 1.02 ではインプリメントされていない
-FrameRgn	equ	$a17a
-PaintRgn	equ	$a17b
-FramePoly	equ	$a17c	* FSX.X 1.02 ではインプリメントされていない
-PaintPoly	equ	$a17d	* FSX.X 1.02 ではインプリメントされていない
-ScrollRect	equ	$a17e
-CopyBits	equ	$a17f
-CopyMask	equ	$a180
-*		equ	$a181
-PlotBitImage	equ	$a182
-PutRectImage	equ	$a183
-*		equ	$a184
-*		equ	$a185
-*		equ	$a186
-*		equ	$a187
-*		equ	$a188
-*		equ	$a189
-*		equ	$a18a
-TextFont	equ	$a18b
-TextFace	equ	$a18c
-TextMode	equ	$a18d
-TextSize	equ	$a18e
-DrawChar	equ	$a18f
-DrawString	equ	$a190
-DrawText	equ	$a191
-DrawCString	equ	$a192
-*		equ	$a193
-CharWidth	equ	$a194
-StringWidth	equ	$a195
-TextWidth	equ	$a196
-TextInWidth	equ	$a197
-GetFontInfo	equ	$a198
-OpenPicture	equ	$a199
-ClosePicture	equ	$a19a
-KillPicture	equ	$a19b
-DrawPicture	equ	$a19c
-*		equ	$a19d
-*		equ	$a19e
-*		equ	$a19f
-*		equ	$a1a0
-DrawShadowCString equ	$a1a1
-PaintShadowRect	equ	$a1a2
-FrameInvertRect	equ	$a1a3
-*		equ	$a1a4
-*		equ	$a1a5
-MapPt		equ	$a1a6
-MapRect		equ	$a1a7
-*		equ	$a1a8
-MapRgn		equ	$a1a9
-ScalePt		equ	$a1aa
-InitPalettes	equ	$a1ab
-*		equ	$a1ac
-DrawGPackedBits	equ	$a1ad
-*		equ	$a1ae
-GetPixel	equ	$a1af
-*		equ	$a1b0
-CalcMask	equ	$a1b1
-*		equ	$a1b2
-LongMul		equ	$a1b3
-FixRound	equ	$a1b4
-*		equ	$a1b5
-FixMul		equ	$a1b6
-FixRatio	equ	$a1b7
-*		equ	$a1b8
-*		equ	$a1b9
-*		equ	$a1ba
-*		equ	$a1bb	* $a1bb から $a1f7 までは FSX.X 1.02 では未定義
-*		equ	$a1bc
-*		equ	$a1bd
-*		equ	$a1be
-*		equ	$a1bf
-*		equ	$a1c0
-*		equ	$a1c1
-*		equ	$a1c2
-*		equ	$a1c3
-*		equ	$a1c4
-*		equ	$a1c5
-*		equ	$a1c6
-*		equ	$a1c7
-*		equ	$a1c8
-*		equ	$a1c9
-NewOffScreen	equ	$a1ca
-DisposeOffScreen equ	$a1cb
-OpenOffScreen	equ	$a1cc
-CloseOffScreen	equ	$a1cd
-PaintItalicRect	equ	$a1ce
-ItalicRectRgn	equ	$a1cf
-*		equ	$a1d0
-*		equ	$a1d1
-*		equ	$a1d2
-*		equ	$a1d3
-*		equ	$a1d4
-*		equ	$a1d5
-*		equ	$a1d6
-DrawIronRect	equ	$a1d7
-*		equ	$a1d8
-*		equ	$a1d9
-*		equ	$a1da
-*		equ	$a1db
-*		equ	$a1dc
-*		equ	$a1dd
-*		equ	$a1de
-*		equ	$a1df
-*		equ	$a1e0
-*		equ	$a1e1
-*		equ	$a1e2
-*		equ	$a1e3
-*		equ	$a1e4
-*		equ	$a1e5
-*		equ	$a1e6
-*		equ	$a1e7
-*		equ	$a1e8
-*		equ	$a1e9
-*		equ	$a1ea
-*		equ	$a1eb
-*		equ	$a1ec
-*		equ	$a1ed
-*		equ	$a1ee
-*		equ	$a1ef
-*		equ	$a1f0
-*		equ	$a1f1
-*		equ	$a1f2
-*		equ	$a1f3
-*		equ	$a1f4
-*		equ	$a1f5
-*		equ	$a1f6
-*		equ	$a1f7	* $a1bb から $a1f7 までは FSX.X 1.02 では未定義
-InitWindows	equ	$a1f8
-NewWindow	equ	$a1f9
-GetNewWindow	equ	$a1fa
-CloseWindow	equ	$a1fb
-DisposeWindow	equ	$a1fc
-FindWindow	equ	$a1fd
-SelectWindow	equ	$a1fe
-BringToFront	equ	$a1ff
-SendBehind	equ	$a200
-HiliteWindow	equ	$a201
-MoveWindow	equ	$a202
-SizeWindow	equ	$a203
-GrowWindow	equ	$a204
-DragWindow	equ	$a205
-ZoomWindow	equ	$a206
-ShowWindow	equ	$a207
-HideWindow	equ	$a208
-ShowHide	equ	$a209
-TrackBox	equ	$a20a
-TrackGoAway	equ	$a20b
-DrawGrowIcon	equ	$a20c
-BeginUpdate	equ	$a20d
-EndUpdate	equ	$a20e
-FrontWindow	equ	$a20f
-GetWMgrPort	equ	$a210
-CalcVis		equ	$a211
-ClipAbove	equ	$a212
-SaveOld		equ	$a213
-PaintOne	equ	$a214
-PaintBehind	equ	$a215
-CheckUpdate	equ	$a216
-*		equ	$a217
-InvalRect	equ	$a218
-InvalRgn	equ	$a219
-ValidRect	equ	$a21a
-ValidRgn	equ	$a21b
-SetWindowPic	equ	$a21c
-GetWindowPic	equ	$a21d
-SetWTitle	equ	$a21e
-GetWTitle	equ	$a21f
-SetWRefCon	equ	$a220
-GetWRefCon	equ	$a221
-PinRect		equ	$a222
-*		equ	$a223
-GetDesktopPic	equ	$a224
-DragGrayRgn	equ	$a225
-*		equ	$a226	* $a226 から $a265 までは FSX.X 1.02 では未定義
-*		equ	$a227
-*		equ	$a228
-*		equ	$a229
-*		equ	$a22a
-*		equ	$a22b
-GetWVariant	equ	$a22c
-SetWVariant	equ	$a22d
-IsGrowIcon	equ	$a22e
-*		equ	$a22f
-*		equ	$a230
-*		equ	$a231
-*		equ	$a232
-*		equ	$a233
-*		equ	$a234
-*		equ	$a235
-*		equ	$a236
-*		equ	$a237
-*		equ	$a238
-*		equ	$a239
-*		equ	$a23a
-*		equ	$a23b
-*		equ	$a23c
-*		equ	$a23d
-*		equ	$a23e
-*		equ	$a23f
-*		equ	$a240
-*		equ	$a241
-*		equ	$a242
-*		equ	$a243
-*		equ	$a244
-*		equ	$a245
-*		equ	$a246
-*		equ	$a247
-*		equ	$a248
-*		equ	$a249
-*		equ	$a24a
-*		equ	$a24b
-*		equ	$a24c
-*		equ	$a24d
-*		equ	$a24e
-*		equ	$a24f
-*		equ	$a250
-*		equ	$a251
-*		equ	$a252
-*		equ	$a253
-*		equ	$a254
-*		equ	$a255
-*		equ	$a256
-*		equ	$a257
-*		equ	$a258
-*		equ	$a259
-*		equ	$a25a
-*		equ	$a25b
-*		equ	$a25c
-*		equ	$a25d
-*		equ	$a25e
-*		equ	$a25f
-*		equ	$a260
-*		equ	$a261
-*		equ	$a262
-*		equ	$a263
-*		equ	$a264
-*		equ	$a265	* $a226 から $a265 までは FSX.X 1.02 では未定義
-InitMenus	equ	$a266
-GetMenu		equ	$a267
-MenuSelect	equ	$a268
-NewMenu		equ	$a269
-*		equ	$a26a	* $a26a から $a288 までは FSX.X 1.10 では未定義
-*		equ	$a26b
-*		equ	$a26c
-*		equ	$a26d
-*		equ	$a26e
-*		equ	$a26f
-*		equ	$a270
-*		equ	$a271
-*		equ	$a272
-*		equ	$a273
-*		equ	$a274
-*		equ	$a275
-*		equ	$a276
-*		equ	$a277
-*		equ	$a278
-*		equ	$a279
-*		equ	$a27a
-*		equ	$a27b
-*		equ	$a27c
-*		equ	$a27d
-*		equ	$a27e
-*		equ	$a27f
-*		equ	$a280
-*		equ	$a281
-*		equ	$a282
-*		equ	$a283
-*		equ	$a284
-*		equ	$a285
-*		equ	$a286
-*		equ	$a287
-*		equ	$a288	* $a269 から $a288 までは FSX.X 1.02 では未定義
-NewControl	equ	$a289
-DisposeControl	equ	$a28a
-KillControls	equ	$a28b
-HideControl	equ	$a28c
-ShowControl	equ	$a28d
-DrawControls	equ	$a28e
-Draw1Control	equ	$a28f
-SetCtlValue	equ	$a290
-GetCtlValue	equ	$a291
-SetCtlMin	equ	$a292
-GetCtlMin	equ	$a293
-SetCtlMax	equ	$a294
-GetCtlMax	equ	$a295
-MoveControl	equ	$a296
-SizeControl	equ	$a297
-HiliteControl	equ	$a298
-FindControl	equ	$a299
-TrackControl	equ	$a29a
-GetNewControl	equ	$a29b
-GetCTitle	equ	$a29c
-DragControl	equ	$a29d	* FSX.X 1.02, 1.10 ではバグっている
-UpdtControl	equ	$a29e
-SetCTitle	equ	$a29f
-GetCVariant	equ	$a2a0
-SetCVariant	equ	$a2a1
-GetCRefCon	equ	$a2a2
-SetCRefCon	equ	$a2a3	* FSX.X 1.10 ではバグっている
-GetCtlAction	equ	$a2a4
-SetCtlAction	equ	$a2a5	* FSX.X 1.10 ではバグっている
-GetCtlData	equ	$a2a6
-SetCtlData	equ	$a2a7	* FSX.X 1.10 ではバグっている
-*		equ	$a2a8	* $a2a8 から $a2bf までは FSX.X 1.10 では未定義
-*		equ	$a2a9
-*		equ	$a2aa
-*		equ	$a2ab
-*		equ	$a2ac
-*		equ	$a2ad
-*		equ	$a2ae
-*		equ	$a2af
-*		equ	$a2b0
-*		equ	$a2b1
-*		equ	$a2b2
-*		equ	$a2b3
-*		equ	$a2b4
-*		equ	$a2b5
-*		equ	$a2b6
-*		equ	$a2b7
-*		equ	$a2b8
-*		equ	$a2b9
-*		equ	$a2ba
-*		equ	$a2bb
-*		equ	$a2bc
-*		equ	$a2bd
-*		equ	$a2be
-*		equ	$a2bf	* $a2a0 から $a2bf までは FSX.X 1.02 では未定義
-InitDialogs	equ	$a2c0
-*		equ	$a2c1
-SetDAFont	equ	$a2c2
-NewDialog	equ	$a2c3
-GetNewDialog	equ	$a2c4
-CloseDialog	equ	$a2c5
-DisposeDialog	equ	$a2c6
-ModalDialog	equ	$a2c7
-DrawDialog	equ	$a2c8
-Alert		equ	$a2c9
-*		equ	$a2ca
-*		equ	$a2cb
-*		equ	$a2cc
-CoundAlert	equ	$a2cd
-FreeAlert	equ	$a2ce
-GetDItem	equ	$a2cf
-SetDItem	equ	$a2d0
-GetIText	equ	$a2d1	* FSX.X 1.02, 1.10 では正常に動作しない
-SetIText	equ	$a2d2	* FSX.X 1.02, 1.10 では正常に動作しない
-SelIText	equ	$a2d3
-*		equ	$a2d4
-*		equ	$a2d5
-UpdtDialog	equ	$a2d6
-SysBeep		equ	$a2d7
-HideDItem	equ	$a2d8
-ShowDItem	equ	$a2d9
-*		equ	$a2da
-*		equ	$a2db
-*		equ	$a2dc
-*		equ	$a2dd
-*		equ	$a2de
-*		equ	$a2df
-*		equ	$a2e0
-*		equ	$a2e1
-*		equ	$a2e2
-*		equ	$a2e3
-*		equ	$a2e4
-*		equ	$a2e5
-*		equ	$a2e6
-*		equ	$a2e7
-*		equ	$a2e8
-*		equ	$a2e9
-*		equ	$a2ea
-*		equ	$a2eb
-*		equ	$a2ec
-*		equ	$a2ed
-*		equ	$a2ee
-*		equ	$a2ef
-*		equ	$a2f0
-*		equ	$a2f1
-*		equ	$a2f2
-*		equ	$a2f3
-*		equ	$a2f4
-*		equ	$a2f5
-ShowAlert	equ	$a2f6
-ShowWaitDialog	equ	$a2f7
-HideWaitDialog	equ	$a2f8
-*		equ	$a2f9
-*		equ	$a2fa
-*		equ	$a2fb
-*		equ	$a2fc
-*		equ	$a2fd
-*		equ	$a2fe
-*		equ	$a2ff
-*		equ	$a300
-*		equ	$a301
-*		equ	$a302
-*		equ	$a303
-*		equ	$a304
-*		equ	$a305
-*		equ	$a306
-*		equ	$a307
-*		equ	$a308
-*		equ	$a309
-TEInit		equ	$a30a
-*		equ	$a30b
-TESetRect	equ	$a30c
-*TESetText	equ	$a30d
-TEIdle		equ	$a30e
-*		equ	$a30f
-*		equ	$a310
-TESetCaret	equ	$a311
-TEDispose	equ	$a312
-TEUpdate	equ	$a313
-TESetText	equ	$a314
-TEGetText	equ	$a315
-TESetSelect	equ	$a316
-TEKey		equ	$a317
-TEInsert	equ	$a318
-*		equ	$a319
-TEPinScroll	equ	$a31a
-TEClick		equ	$a31b
-TEEventProc	equ	$a31c
-*		equ	$a31d
-*		equ	$a31e
-*		equ	$a31f
-TECut		equ	$a320
-TECopy		equ	$a321
-TEPaste		equ	$a322
-TEDelete	equ	$a323
-*		equ	$a324
-TEFromScrap	equ	$a325
-TEToScrap	equ	$a326
-TEScrapHandle	equ	$a327
-TEGetScrapLen	equ	$a328
-*		equ	$a329
-*		equ	$a32a
-TextBox		equ	$a32b
-*		equ	$a32c
-*		equ	$a32d
-*		equ	$a32e
-*		equ	$a32f
-*		equ	$a330
-*		equ	$a331
-*		equ	$a332
-*		equ	$a333
-*		equ	$a334
-*		equ	$a335
-*		equ	$a336
-*		equ	$a337
-*		equ	$a338
-*		equ	$a339
-*		equ	$a33a
-*		equ	$a33b
-*		equ	$a33c
-*		equ	$a33d
-*		equ	$a33e
-*		equ	$a33f
-*		equ	$a340
-*		equ	$a341
-*		equ	$a342
-*		equ	$a343
-*		equ	$a344
-*		equ	$a345
-*		equ	$a346
-*		equ	$a347
-*		equ	$a348
-*		equ	$a349
-*		equ	$a34a
-*		equ	$a34b
-InitTasks	equ	$a34c
-*		equ	$a34d
-*		equ	$a34e
-*		equ	$a34f
-*		equ	$a350
-*		equ	$a351
-ExitToShell	equ	$a352
-Launch		equ	$a353
-*		equ	$a354
-*		equ	$a355
-*		equ	$a356
-EventAvail	equ	$a357
-GetNextEvent	equ	$a358
-*		equ	$a359
-PostTaskEvent	equ	$a35a
-GetTaskTable	equ	$a35b
-SetTaskTable	equ	$a35c
-*		equ	$a35d
-GetWindowPos	equ	$a35e
-*		equ	$a35f
-GetTaskID	equ	$a360
-CreateTaskEvent	equ	$a361
-*		equ	$a362
-*		equ	$a363
-*		equ	$a364
-*		equ	$a365
-*		equ	$a366
-SXOpen		equ	$a367
-SXClose		equ	$a368
-*		equ	$a369
-*		equ	$a36a
-*		equ	$a36b
-*		equ	$a36c
-SXCreate	equ	$a36d
-*		equ	$a36e
-*		equ	$a36f
-SXFiles		equ	$a370
-SXNFiles	equ	$a371
-*		equ	$a372
-*		equ	$a373
-*		equ	$a374
-*		equ	$a375
-*		equ	$a376
-*		equ	$a377
-*		equ	$a378
-*		equ	$a379
-*		equ	$a37a
-*		equ	$a37b
-*		equ	$a37c
-*		equ	$a37d
-*		equ	$a37e
-*		equ	$a37f
-*		equ	$a380
-*		equ	$a381
-*		equ	$a382
-*		equ	$a383
-*		equ	$a384
-*		equ	$a385
-*		equ	$a386
-ZeroDragInfo	equ	$a387
-AddDragInfo	equ	$a388
-GetDragInfo	equ	$a389
-BeginDrag	equ	$a38a
-*		equ	$a38b
-EndDrag		equ	$a38c
-HideDragRgn	equ	$a38d
-ShowDragRgn	equ	$a38e
-ZeroScrap	equ	$a38f
-PutScrap	equ	$a390
-GetScrap	equ	$a391
-*		equ	$a392
-*		equ	$a393
-*		equ	$a394
-*		equ	$a395
-*		equ	$a396
-*		equ	$a397
-*		equ	$a398
-*		equ	$a399
-*		equ	$a39a
-*		equ	$a39b
-*		equ	$a39c
-*		equ	$a39d
-*		equ	$a39e
-*		equ	$a39f
-*		equ	$a3a0
-*		equ	$a3a1
-TrackWindow	equ	$a3a2
-ControlEventProc equ	$a3a3
-PopupDialog	equ	$a3a4
-*		equ	$a3a5
-*		equ	$a3a6
-*		equ	$a3a7
-*		equ	$a3a8
-*		equ	$a3a9
-*		equ	$a3aa
-*		equ	$a3ab
-*		equ	$a3ac
-*		equ	$a3ad
-*		equ	$a3ae
-*		equ	$a3af
-*		equ	$a3b0
-*		equ	$a3b1
-*		equ	$a3b2
-*		equ	$a3b3
-*		equ	$a3b4
-*		equ	$a3b5
-*		equ	$a3b6
-*		equ	$a3b7
-*		equ	$a3b8
-*		equ	$a3b9
-*		equ	$a3ba
-GetIconIName	equ	$a3bb
-*		equ	$a3bc
-*		equ	$a3bd
-*		equ	$a3be
-CreateIconInfo	equ	$a3bf
-*		equ	$a3c0
-*		equ	$a3c1
-*		equ	$a3c2
-*		equ	$a3c3
-*		equ	$a3c4
-*		equ	$a3c5
-*		equ	$a3c6
-*		equ	$a3c7
-*		equ	$a3c8
-*		equ	$a3c9
-*		equ	$a3ca
-*		equ	$a3cb
-*		equ	$a3cc
-*		equ	$a3cd
-*		equ	$a3ce
-*		equ	$a3cf
-*		equ	$a3d0
-*		equ	$a3d1
-*		equ	$a3d2
-*		equ	$a3d3
-RemovePath	equ	$a3d4
-*		equ	$a3d5
-*		equ	$a3d6
-*		equ	$a3d7
-*		equ	$a3d8
-*		equ	$a3d9
-*		equ	$a3da
-*		equ	$a3db
-*		equ	$a3dc
-*		equ	$a3dd
-*		equ	$a3de
-*		equ	$a3df
-*		equ	$a3e0
-*		equ	$a3e1
-*		equ	$a3e2
-*		equ	$a3e3
-*		equ	$a3e4
-*		equ	$a3e5
-*		equ	$a3e6
-*		equ	$a3e7
-*		equ	$a3e8
-FSXVersion	equ	$a3e9
-GetTaskArgs	equ	$a3ea
-*		equ	$a3eb
-*		equ	$a3ec
-*		equ	$a3ed
-*		equ	$a3ee
-*		equ	$a3ef
-*		equ	$a3f0
-*		equ	$a3f1
-*		equ	$a3f2
-*		equ	$a3f3
-FindTask	equ	$a3f4
-*		equ	$a3f5
-*		equ	$a3f6
-*		equ	$a3f7
-*		equ	$a3f8
-*		equ	$a3f9
-GetStartup	equ	$a3fa
-SetStartup	equ	$a3fb
-*		equ	$a3fc
-*		equ	$a3fd
-FindOwnID	equ	$a3fe
-*		equ	$a3ff
-*		equ	$a400
-TENew		equ	$a401
-*		equ	$a402
-SearchPath	equ	$a403
-*		equ	$a404
-*		equ	$a405
-*		equ	$a406
-*		equ	$a407
-*		equ	$a408
-*		equ	$a409
-*		equ	$a40a
-*		equ	$a40b
-*		equ	$a40c
-*		equ	$a40d
-*		equ	$a40e
-*		equ	$a40f
-*		equ	$a410
-*		equ	$a411
-*		equ	$a412
-*		equ	$a413	* FSX.X 1.02 ではここまでしかインプリメントされていない
-*		equ	$a414	* つまり、$a414からのコールは未定義(途中にも抜けはあるが)
-*		equ	$a415
-*		equ	$a416
-*		equ	$a417	* FSX.X 1.03 以降では TSAnswer
-tskMsgOut	equ	$a418	* FSX.X 1.03 以降のみ有効
-*		equ	$a419
-*		equ	$a41a
-*		equ	$a41b
-*		equ	$a41c
-*		equ	$a41d
-*		equ	$a41e
-NotifyWindow	equ	$a41f
-*		equ	$a420
-*		equ	$a421
-GetTrapAddress	equ	$a422
-SetTrapAddress	equ	$a423
-*		equ	$a424
-*		equ	$a425
-*		equ	$a426
-*		equ	$a427
-*		equ	$a428
-*		equ	$a429
-*		equ	$a42a
-*		equ	$a42b
-*		equ	$a42c
-*		equ	$a42d
-SetScrnOffset	equ	$a42e
-GetScrnOffset	equ	$a42f
-*		equ	$a430
-*		equ	$a431
-GetDisplayRect	equ	$a432
-*		equ	$a433
-*		equ	$a434
-*		equ	$a435
-*		equ	$a436
-*		equ	$a437
-*		equ	$a438
-*		equ	$a439
-*		equ	$a43a
-*		equ	$a43b
-*		equ	$a43c
-*		equ	$a43d
-*		equ	$a43e
-*		equ	$a43f
-*
-PrDrvrOpen	equ	$a4e0
-PrDrvrClose	equ	$a4e1
-PrOpen		equ	$a4e2
-PrClose		equ	$a4e3
-*		equ	$a4e4
-*		equ	$a4e5
-*		equ	$a4e6
-*		equ	$a4e7
-*		equ	$a4e8
-*		equ	$a4e9
-*		equ	$a4ea
-*		equ	$a4eb
-*		equ	$a4ec
-*		equ	$a4ed
-*		equ	$a4ee
-*		equ	$a4ef
-*		equ	$a4f0
-*		equ	$a4f1
-*		equ	$a4f2
-*		equ	$a4f3
-*		equ	$a4f4
-*		equ	$a4f5
-PrDrvrDCE	equ	$a4f6
-*				* FSX.X 1.10 では $a4fb までインプリメントされている
+
+.ifndef __sxcall_mac__
+        __sxcall_mac__:=1
+
+
+* Macro --------------------------------------- *
+
+SX: .macro callname
+  .dc callname
+.endm
+
+
+* メモリマン (Memory Man) --------------------- *
+
+__MMInitHeap:           .equ $a000
+__MMGetCurrentHeap:     .equ $a001
+__MMSetCurrentHeap:     .equ $a002
+__MMNewHandle:          .equ $a003
+__MMSetHandleSize:      .equ $a004
+__MMDisposeHandle:      .equ $a005
+__MMGetHandleSize:      .equ $a006
+__MMHLock:              .equ $a007
+__MMHUnlock:            .equ $a008
+__MMNewPtr:             .equ $a009
+__MMDisposePtr:         .equ $a00a
+__MMGetPtrSize:         .equ $a00b
+__MMSetPtrSize:         .equ $a00c
+__MMCompactMem:         .equ $a00d
+__MMHeapInit:           .equ $a00e
+__MMBlockMstGet:        .equ $a00f
+__MMMemCompact:         .equ $a010
+__MMMemPurge:           .equ $a011
+__MMMemMelt:            .equ $a012
+__MMMemReserve:         .equ $a013
+__MMMemSizeFree:        .equ $a014
+__MMMemSizeComp:        .equ $a015
+__MMMemSizePurg:        .equ $a016
+__MMMemSizePurge:       .equ $a016
+__MMMemSizeMelt:        .equ $a017
+__MMMemErrorGet:        .equ $a018
+__MMMemErrorSet:        .equ $a019
+__MMMemStrictGet:       .equ $a01a
+__MMMemStrictSet:       .equ $a01b
+__MMChGet:              .equ $a01c
+__MMChSet:              .equ $a01d
+__MMChPtrNew:           .equ $a01e
+__MMChMstMore:          .equ $a01f
+__MMChMstNew:           .equ $a020
+__MMChHdlNew:           .equ $a021
+__MMChCompact:          .equ $a022
+__MMChPurge:            .equ $a023
+__MMChMelt:             .equ $a024
+__MMChReserve:          .equ $a025
+__MMChFreeSize:         .equ $a026
+__MMChGrowHeapGet:      .equ $a027
+__MMChGrowHeapSet:      .equ $a028
+__MMChPurgeGet:         .equ $a029
+__MMChPurgeSet:         .equ $a02a
+__MMChCompactGet:       .equ $a02b
+__MMChCompactSet:       .equ $a02c
+__MMPtrNew:             .equ $a02d
+__MMPtrHeap:            .equ $a02e
+__MMPtrDispose:         .equ $a02f
+__MMPtrSizeGet:         .equ $a030
+__MMPtrSizeSet:         .equ $a031
+__MMPtrPropGet:         .equ $a032
+__MMPtrPropSet:         .equ $a033
+__MMMstAllocate:        .equ $a034
+__MMMstBind:            .equ $a035
+__MMHdlNew:             .equ $a036
+__MMHdlHeap:            .equ $a037
+__MMHdlDispose:         .equ $a038
+__MMHdlSizeGet:         .equ $a039
+__MMHdlSizeSet:         .equ $a03a
+__MMHdlEmpty:           .equ $a03b
+__MMHdlRealloc:         .equ $a03c
+__MMHdlMoveHi:          .equ $a03d
+__MMHdlPropGet:         .equ $a03e
+__MMHdlPropSet:         .equ $a03f
+__MMHdlLock:            .equ $a040
+__MMHdlUnlock:          .equ $a041
+__MMHdlPurge:           .equ $a042
+__MMHdlNoPurge:         .equ $a043
+__MMHdlResource:        .equ $a044
+__MMHdlNoResource:      .equ $a045
+__MMHdlIns:             .equ $a046
+__MMHdlDel:             .equ $a047
+__MMBlockUsrFlagGet:    .equ $a048
+__MMBlockUsrFlagSet:    .equ $a049
+__MMBlockUsrWordGet:    .equ $a04a
+__MMBlockUsrWordSet:    .equ $a04b
+__MMMemAmiTPeach:       .equ $a04c
+__MMMemHiReserve:       .equ $a04d
+__MMPtrBlock:           .equ $a04e
+__MMHdlBlock:           .equ $a04f
+__MMHdlMstGet:          .equ $a050
+__MMChHiReserve:        .equ $a051
+__MMChUsrFlagGet:       .equ $a052
+__MMChUsrFlagSet:       .equ $a053
+__MMChUsrWordGet:       .equ $a054
+__MMChUsrWordSet:       .equ $a055
+
+* エクセプションマン (Exception Man) ---------- *
+
+__EXEnVDISPST:          .equ $a068
+__EXDeVDISPST:          .equ $a069
+
+* マウスマン (Mouse Man) ---------------------- *
+
+__MSInitCsr:            .equ $a06a
+__MSShowCsr:            .equ $a06b
+__MSHideCsr:            .equ $a06c
+__MSSetCsr:             .equ $a06d
+__MSObscureCsr:         .equ $a06e
+__MSShieldCsr:          .equ $a06f
+__MSGetCurMsr:          .equ $a070
+__MSMultiGet:           .equ $a071
+__MSMultiSet:           .equ $a072
+
+__MSBoundGet:           .equ $a076
+__MSBoundSet:           .equ $a077
+__MSMove:               .equ $a078
+
+* アニメーションマン (Animation Man) ---------- *
+
+__EXAnimStart:          .equ $a073
+__EXAnimEnd:            .equ $a074
+__EXAnimTest:           .equ $a075
+
+* キーボードマン (Keyboard Man) --------------- *
+
+__KBMapGet:             .equ $a086
+__KBShiftGet:           .equ $a087
+__KBShiftSet:           .equ $a088
+__KBSimulate:           .equ $a089
+__KBScan:               .equ $a08a
+__KBGet:                .equ $a08b
+__KBEmpty:              .equ $a08c
+__KBInit:               .equ $a08d
+__KBTini:               .equ $a08e
+__KBCurKbrGet:          .equ $a08f
+__KBOldOnGet:           .equ $a090
+__KBOldOnSet:           .equ $a091
+__KBFlagGet:            .equ $a092
+__KBFlagSet:            .equ $a093
+
+* キーマン (Key Man) -------------------------- *
+
+__KMEmpty:              .equ $a09a
+__KMPost:               .equ $a09b
+__KMAscJobSet:          .equ $a09c
+__KMSimulate:           .equ $a09d
+__KMTask:               .equ $a09e
+__KMInit:               .equ $a09f
+__KMTini:               .equ $a0a0
+__KMCurKmrGet:          .equ $a0a1
+
+* イベントマン (Event Man) -------------------- *
+
+__EMInit:               .equ $a0a2
+__EMTini:               .equ $a0a3
+__EMSet:                .equ $a0a4
+__EMGet:                .equ $a0a5
+__EMScan:               .equ $a0a6
+__EMMSLoc:              .equ $a0a7
+__EMLBttn:              .equ $a0a8
+__EMRBttn:              .equ $a0a9
+__EMLStill:             .equ $a0aa
+__EMRStill:             .equ $a0ab
+__EMLWait:              .equ $a0ac
+__EMRWait:              .equ $a0ad
+__EMKMapGet:            .equ $a0ae
+__EMSysTime:            .equ $a0af
+__EMDClickGet:          .equ $a0b0
+__EMBlinkGet:           .equ $a0b1
+__EMClean:              .equ $a0b2
+__EMMaskSet:            .equ $a0b3
+__EMDClickSet:          .equ $a0b5
+__EMBlinkSet:           .equ $a0b6
+__EMEnCross:            .equ $a0b7
+__EMDeCross:            .equ $a0b8
+
+* リソースマン (Resource Man) ----------------- *
+
+__RMInit:               .equ $a0d9
+__RMTini:               .equ $a0da
+__RMResNew:             .equ $a0db
+__RMRscAdd:             .equ $a0dc
+__RMRscRemove:          .equ $a0dd
+__RMTypeRemove:         .equ $a0de
+__RMResDispose:         .equ $a0df
+__RMResOpen:            .equ $a0e0
+__RMRscGet:             .equ $a0e1
+__RMResClose:           .equ $a0e2
+__RMResRemove:          .equ $a0e3
+__RMCurResSet:          .equ $a0e4
+__RMRscRelease:         .equ $a0e5
+__RMRscDetach:          .equ $a0e6
+__RMMaxIDGet:           .equ $a0e7
+__RMResSave:            .equ $a0e8
+__RMHdlToRsc:           .equ $a0e9
+__RMCurResGet:          .equ $a0ea
+__RMLastResGet:         .equ $a0eb
+__RMResLoad:            .equ $a0ec
+__RMResLinkGet:         .equ $a0ed
+__RMResTypeList:        .equ $a0ee
+__RMResIDList:          .equ $a0ef
+
+* グラフマン (Graph Man) ---------------------- *
+
+__GMOpenGraph:          .equ $a12d
+__GMCloseGraph:         .equ $a12e
+__GMInitGraph:          .equ $a130
+__GMSetGraph:           .equ $a131
+__GMGetGraph:           .equ $a132
+__GMCopyGraph:          .equ $a133
+__GMMoveGraph:          .equ $a136
+__GMSlideGraph:         .equ $a137
+__GMSetClip:            .equ $a138
+__GMGetClip:            .equ $a139
+__GMClipRect:           .equ $a13a
+__GMSetHome:            .equ $a13b
+__GMSetGraphSize:       .equ $a13c
+__GMSetBitmap:          .equ $a13d
+__GMLocalToGlobal:      .equ $a13e
+__GMGlobalToLocal:      .equ $a13f
+__GMInitPen:            .equ $a140
+__GMPenShow:            .equ $a141
+__GMPenHide:            .equ $a142
+__GMPenSize:            .equ $a143
+__GMPenMode:            .equ $a144
+__GMPenPat:             .equ $a145
+__GMExPat:              .equ $a146
+__GMForeColor:          .equ $a147
+__GMBackColor:          .equ $a148
+__GMAPage:              .equ $a149
+__GMGetLoc:             .equ $a14a
+__GMGetPen:             .equ $a14b
+__GMSetPen:             .equ $a14c
+__GMInitialize:         .equ $a14d
+__GMNullRect:           .equ $a14e
+__GMSizeRect:           .equ $a14f
+__GMAndRects:           .equ $a150
+__GMMoveRect:           .equ $a151
+__GMSlideRect:          .equ $a152
+__GMInsetRect:          .equ $a153
+__GMAndRect:            .equ $a154
+__GMOrRect:             .equ $a155
+__GMPtInRect:           .equ $a156
+__GMEqualRect:          .equ $a157
+__GMEmptyRect:          .equ $a158
+__GMAdjustRect:         .equ $a159
+__GMNewRgn:             .equ $a15a
+__GMDisposeRgn:         .equ $a15b
+__GMOpenRgn:            .equ $a15c
+__GMCloseRgn:           .equ $a15d
+__GMNullRgn:            .equ $a15e
+__GMRectRgn:            .equ $a15f
+__GMCopyRgn:            .equ $a160
+__GMMoveRgn:            .equ $a161
+__GMSlideRgn:           .equ $a162
+__GMInsetRgn:           .equ $a163
+__GMAndRgn:             .equ $a164
+__GMOrRgn:              .equ $a165
+__GMDiffRgn:            .equ $a166
+__GMXorRgn:             .equ $a167
+__GMPtInRgn:            .equ $a168
+__GMRectInRgn:          .equ $a169
+__GMEqualRgn:           .equ $a16a
+__GMEmptyRgn:           .equ $a16b
+__GMImgToRgn:           .equ $a16c
+__GMInitBitmap:         .equ $a16d
+__GMMove:               .equ $a16e
+__GMMoveRel:            .equ $a16f
+__GMLine:               .equ $a170
+__GMLineRel:            .equ $a171
+__GMFrameRect:          .equ $a172
+__GMFillRect:           .equ $a173
+__GMFrameOval:          .equ $a174
+__GMFillOval:           .equ $a175
+__GMFrameRRect:         .equ $a176
+__GMFillRRect:          .equ $a177
+__GMFrameArc:           .equ $a178
+__GMFillArc:            .equ $a179
+__GMFrameRgn:           .equ $a17a
+__GMFillRgn:            .equ $a17b
+__GMFramePoly:          .equ $a17c
+__GMFillPoly:           .equ $a17d
+__GMScroll:             .equ $a17e
+__GMCopy:               .equ $a17f
+__GMCopyMask:           .equ $a180
+__GMPlotImg:            .equ $a182
+__GMPutRImg:            .equ $a183
+__GMDupHImg:            .equ $a186
+__GMDupVImg:            .equ $a187
+__GMDupHRImg:           .equ $a188
+__GMDupVRImg:           .equ $a189
+__GMFontKind:           .equ $a18b
+__GMFontFace:           .equ $a18c
+__GMFontMode:           .equ $a18d
+__GMFontSize:           .equ $a18e
+__GMDrawChar:           .equ $a18f
+__GMDrawStrL:           .equ $a190
+__GMDrawStr:            .equ $a191
+__GMDrawStrZ:           .equ $a192
+__GMCharWidth:          .equ $a194
+__GMStrLWidth:          .equ $a195
+__GMStrWidth:           .equ $a196
+__GMStrLength:          .equ $a197
+__GMFontInfo:           .equ $a198
+__GMOpenScript:         .equ $a199
+__GMCloseScript:        .equ $a19a
+__GMDisposeScript:      .equ $a19b
+__GMDrawScript:         .equ $a19c
+__GMGetScript:          .equ $a19d
+__GMOpenPoly:           .equ $a19e
+__GMClosePoly:          .equ $a19f
+__GMDisposePoly:        .equ $a1a0
+__GMShadowStrZ:         .equ $a1a1
+__GMShadowRect:         .equ $a1a2
+__GMInvertRect:         .equ $a1a3
+__GMInvertBits:         .equ $a1a5
+__GMMapPt:              .equ $a1a6
+__GMMapRect:            .equ $a1a7
+__GMMapPoly:            .equ $a1a8
+__GMMapRgn:             .equ $a1a9
+__GMScalePt:            .equ $a1aa
+__GMInitPalet:          .equ $a1ab
+__GMGradePalet:         .equ $a1ac
+__GMDrawG16:            .equ $a1ad
+__GMGetPixel:           .equ $a1af
+__GMCalcMask:           .equ $a1b1
+__GMCalcFrame:          .equ $a1b2
+__SXLongMul:            .equ $a1b3
+__SXFixRound:           .equ $a1b4
+__SXFixMul:             .equ $a1b6
+__SXFixDiv:             .equ $a1b7
+__GMGetFontTable:       .equ $a1b8
+__GMCopyStdProc:        .equ $a1b9
+__GMStrZWidth:          .equ $a1ba
+__GMTransImg:           .equ $a1bb
+__GMFillRImg:           .equ $a1bc
+__GMFillImg:            .equ $a1bd
+__GMSlidedRgn:          .equ $a1be
+__GMPaintRgn:           .equ $a1bf
+__GMSetRgnLine:         .equ $a1c0
+__GMGetRgnLine:         .equ $a1c1
+__GMInitGraphMode:      .equ $a1c2
+__GMCurFont:            .equ $a1c3
+__GMGetScrnSize:        .equ $a1c4
+__GMExgGraph:           .equ $a1c5
+__GMExgBitmap:          .equ $a1c6
+__GMGetBitmap:          .equ $a1c7
+__GMCalcBitmap:         .equ $a1c8
+__GMCalcScrnSize:       .equ $a1c9
+__GMNewBits:            .equ $a1ca
+__GMDisposeBits:        .equ $a1cb
+__GMLockBits:           .equ $a1cc
+__GMUnlockBits:         .equ $a1cd
+__GMItalicRect:         .equ $a1ce
+__GMItalicRgn:          .equ $a1cf
+__GMFreeBits:           .equ $a1d0
+__GMCalcGraph:          .equ $a1d1
+__GMPackImage:          .equ $a1d2
+__GMUnpackImage:        .equ $a1d3
+__GMAdjustPt:           .equ $a1d4
+__GMPutImg:             .equ $a1d5
+__GMCenterRect:         .equ $a1d6
+__GMScrewRect:          .equ $a1d7
+__GMAndRectRgn:         .equ $a1d8
+__GMOrRectRgn:          .equ $a1d9
+__GMDiffRectRgn:        .equ $a1da
+__GMXorRectRgn:         .equ $a1db
+__GMCharKind:           .equ $a1dc
+__GMDiffRgnRect:        .equ $a1dd
+__GMAddFont:            .equ $a1e0
+__GMRemoveFont:         .equ $a1e1
+__GMGetFontLink:        .equ $a1e2
+__GMGetHProcTbl:        .equ $a1e3
+__GMGetStdProcTbl:      .equ $a1e6
+__GMGetFontProcTbl:     .equ $a1e7
+__GMGetRgnProcTbl:      .equ $a1e8
+__GMDrawGsOne:          .equ $a1e9
+__GMPtInImg:            .equ $a1ea
+__GMFrameNPoly:         .equ $a1eb
+__GMFillNPoly:          .equ $a1ec
+__GMNPolyFrRgn:         .equ $a1ed
+__GMNPolyFlRgn:         .equ $a1ee
+__GMPtInNPoly:          .equ $a1ef
+__GMPtOnNPoly:          .equ $a1f0
+__GMRecordScript:       .equ $a1f1
+__GMNLineRel:           .equ $a1f2
+__GMNLine:              .equ $a1f3
+__GMRecordPoly:         .equ $a1f4
+
+__GMDitherImg:          .equ $a455  ;sx-3.1
+
+__GMSetFlattness:       .equ $a540
+__GMGetFlattness:       .equ $a541
+__GMDrawBezier:         .equ $a544
+__GMDrawBSpline:        .equ $a545
+__GMSplitBezier:        .equ $a546
+__GMSplitBSpline:       .equ $a547
+__GMPtOnBezier:         .equ $a548
+__GMPtOnBSpline:        .equ $a549
+__GMSetBSError:         .equ $a54a
+__GMGetBSError:         .equ $a54b
+__GMSetGSDraw:          .equ $a550
+__GMGetGSDraw:          .equ $a551
+__GMSetGSGet:           .equ $a552
+__GMGetGSGet:           .equ $a553
+__GMTileRImg:           .equ $a554  ;sx-3.0
+__GMTileImg:            .equ $a555  ;sx-3.0
+__GMSetDispOffset:      .equ $a556  ;sx-3.0
+__GMGetDispOffset:      .equ $a557  ;sx-3.0
+__GMTestScrKindG:       .equ $a558  ;sx-3.0
+__GMGetScrKindG:        .equ $a559  ;sx-3.0
+__GMGetGraphMode:       .equ $a55d  ;sx-3.0
+__GMSetPalet:           .equ $a55e  ;sx-3.0
+__GMGetPalet:           .equ $a55f  ;sx-3.0
+__GMCopy2:              .equ $a560  ;sx-3.0
+__GMMakeGrpBitmap:      .equ $a562  ;sx-3.0
+__GMDrawScript2:        .equ $a563  ;sx-3.0
+__GMRecordVer:          .equ $a564  ;sx-3.0
+__GMForeRGB:            .equ $a565  ;sx-3.0
+__GMBackRGB:            .equ $a566  ;sx-3.0
+__GMRecEnv:             .equ $a567  ;sx-3.0
+__GMRecPalet:           .equ $a568  ;sx-3.0
+__GMFillRImg2:          .equ $a569  ;sx-3.0
+__GMFillImg2:           .equ $a56a  ;sx-3.0
+__GMSetPutID:           .equ $a56b  ;sx-3.0
+__GMMakePalet:          .equ $a56c  ;sx-3.0
+__GMFontRealSize:       .equ $a56d  ;sx-3.0
+__GMGetCPDFInfo:        .equ $a56e  ;sx-3.0
+__GMGetCPDFList:        .equ $a56f  ;sx-3.0
+__GMScanScript:         .equ $a570  ;sx-3.0
+__GMGetGSInfo:          .equ $a571  ;sx-3.0
+__GMMovePoly:           .equ $a572  ;sx-3.0
+__GMSlidePoly:          .equ $a573  ;sx-3.0
+__GMNewBits2:           .equ $a574  ;sx-3.0
+
+* ウィンドウマン (Window Man) ----------------- *
+
+__WMInit:               .equ $a1f8
+__WMOpen:               .equ $a1f9
+__WMRefer:              .equ $a1fa
+__WMClose:              .equ $a1fb
+__WMDispose:            .equ $a1fc
+__WMFind:               .equ $a1fd
+__WMSelect:             .equ $a1fe
+__WMCarry2:             .equ $a1ff
+__WMSelect2:            .equ $a1ff
+__WMCarry:              .equ $a200
+__WMShine:              .equ $a201
+__WMMove:               .equ $a202
+__WMSize:               .equ $a203
+__WMGrow:               .equ $a204
+__WMDrag:               .equ $a205
+__WMZoom:               .equ $a206
+__WMShow:               .equ $a207
+__WMHide:               .equ $a208
+__WMShowHide:           .equ $a209
+__WMCheckBox:           .equ $a20a
+__WMCheckCBox:          .equ $a20b
+__WMDrawGBox:           .equ $a20c
+__WMUpdate:             .equ $a20d
+__WMUpdtOver:           .equ $a20e
+__WMActive:             .equ $a20f
+__WMGraphGet:           .equ $a210
+
+__WMAddRect:            .equ $a218
+__WMAddRgn:             .equ $a219
+__WMSubRect:            .equ $a21a
+__WMSubRgn:             .equ $a21b
+__WMGScriptSet:         .equ $a21c
+__WMTitleSet:           .equ $a21e
+__WMTitleGet:           .equ $a21f
+__WMTIDSet:             .equ $a220
+__WMTIDGet:             .equ $a221
+__WMPinRect:            .equ $a222  ;sx-3.0
+__WMCalcUpdt:           .equ $a223  ;sx-3.0
+__WMGetDTGS:            .equ $a224
+__WMDragRgn:            .equ $a225
+
+__WMOptionGet:          .equ $a22c
+__WMOptionSet:          .equ $a22d
+__WMPtInGBox:           .equ $a22e
+__WHOpen:               .equ $a22f  ;sx-3.0
+__WHGet:                .equ $a230  ;sx-3.0
+__WMOpen2:              .equ $a231  ;sx-3.0
+__WMMargineGet:         .equ $a232  ;sx-3.0
+__WMMargineSet:         .equ $a233  ;sx-3.0
+__WMMove2:              .equ $a235  ;sx-3.0
+
+* サブウィンドウマン (Sub Window Man) --------- *
+
+__WSOpen:               .equ $a227
+__WSClose:              .equ $a228
+__WSDispose:            .equ $a229
+__WSEnlist:             .equ $a22a
+__WSDelist:             .equ $a22b
+
+* メニューマン (Menu Man) --------------------- *
+
+__MNInit:               .equ $a266
+__MNRefer:              .equ $a267
+__MNSelect:             .equ $a268
+__MNConvert:            .equ $a269
+__MNSelect2:            .equ $a26a
+__MNConvert2:           .equ $a26b  ;sx-3.0
+__MNSelect3:            .equ $a26c  ;sx-3.0
+
+* コントロールマン (Control Man) -------------- *
+
+__CMOpen:               .equ $a289
+__CMDispose:            .equ $a28a
+__CMKill:               .equ $a28b
+__CMHide:               .equ $a28c
+__CMShow:               .equ $a28d
+__CMDraw:               .equ $a28e
+__CMDrawOne:            .equ $a28f
+__CMValueSet:           .equ $a290
+__CMValueGet:           .equ $a291
+__CMMinSet:             .equ $a292
+__CMMinGet:             .equ $a293
+__CMMaxSet:             .equ $a294
+__CMMaxGet:             .equ $a295
+__CMMove:               .equ $a296
+__CMSize:               .equ $a297
+__CMShine:              .equ $a298
+__CMFind:               .equ $a299
+__CMCheck:              .equ $a29a
+__CMRefer:              .equ $a29b
+__CMTitleGet:           .equ $a29c
+__CMDraws:              .equ $a29e
+__CMTitleSet:           .equ $a29f
+__CMOptionGet:          .equ $a2a0
+__CMOptionSet:          .equ $a2a1
+__CMUserGet:            .equ $a2a2
+__CMUserSet:            .equ $a2a3
+__CMProcGet:            .equ $a2a4
+__CMProcSet:            .equ $a2a5
+__CMDefDataGet:         .equ $a2a6
+__CMDefDataSet:         .equ $a2a7
+
+* ダイアログマン (Dialog Man) ----------------- *
+
+__DMInit:               .equ $a2c0
+__DMFontSet:            .equ $a2c2
+__DMOpen:               .equ $a2c3
+__DMRefer:              .equ $a2c4
+__DMClose:              .equ $a2c5
+__DMDispose:            .equ $a2c6
+__DMControl:            .equ $a2c7
+__DMDraw:               .equ $a2c8
+__DIGet:                .equ $a2cf
+__DISet:                .equ $a2d0
+__DITGet:               .equ $a2d1
+__DITSet:               .equ $a2d2
+__DITSelect:            .equ $a2d3
+__DIUpdate:             .equ $a2d6
+__DMBeep:               .equ $a2d7
+__DIHide:               .equ $a2d8
+__DIShow:               .equ $a2d9
+__DMError:              .equ $a2f6
+__DMWaitOpen:           .equ $a2f7
+__DMWaitClose:          .equ $a2f8
+__DMWaitWhile:          .equ $a2f9
+__DMError2:             .equ $a2fa  ;sx-3.0
+
+* テキストマン (Text Man) --------------------- *
+
+__TMInit:               .equ $a30a
+__TMNew:                .equ $a30b
+__TMSetRect:            .equ $a30c
+__TMChangeText:         .equ $a30d
+__TMIdle:               .equ $a30e
+__TMCaret:              .equ $a311
+__TMDispose:            .equ $a312
+__TMUpDate:             .equ $a313
+__TMSetText:            .equ $a314
+__TMGetText:            .equ $a315
+__TMSetSelect:          .equ $a316
+__TMKey:                .equ $a317
+__TMStr:                .equ $a318
+__TMCalText:            .equ $a319
+__TMPinScroll:          .equ $a31a
+__TMClick:              .equ $a31b
+__TMEvent:              .equ $a31c
+__TMCut:                .equ $a320
+__TMCopy:               .equ $a321
+__TMPaste:              .equ $a322
+__TMDelete:             .equ $a323
+__TMInsert:             .equ $a324
+__TMFromScrap:          .equ $a325
+__TMToScrap:            .equ $a326
+__TMScrapHandle:        .equ $a327
+__TMGetScrapLen:        .equ $a328
+__TMTextBox:            .equ $a32a
+__TMTextBox2:           .equ $a32b
+__TMCacheON:            .equ $a32c
+__TMCacheOFF:           .equ $a32d
+__TMCacheFlush:         .equ $a32e
+__TMShow:               .equ $a32f
+__TMHide:               .equ $a330
+__TMSelShow:            .equ $a331
+__TMSelHide:            .equ $a332
+__TMSearchStrF:         .equ $a333
+__TMSearchStrB:         .equ $a334
+__TMTextInWidth2:       .equ $a335
+__TMTextWidth2:         .equ $a336
+__TMDrawText2:          .equ $a337
+__TMUpDate2:            .equ $a338
+__TMUpDate3:            .equ $a339
+__TMCalCOLine:          .equ $a33a
+__TMCalLine:            .equ $a33c
+__TMLeftSel:            .equ $a33d
+__TMRightSel:           .equ $a33e
+__TMPointSel:           .equ $a33f
+__TMOffsetSel:          .equ $a340
+__TMPointToLine:        .equ $a341
+__TMCalSelPoint:        .equ $a343
+__TMSetView:            .equ $a345
+__TMScroll:             .equ $a346
+__TMPointScroll:        .equ $a347
+__TMStr2:               .equ $a348
+__TMKeyToAsk:           .equ $a349
+__TMNextCode:           .equ $a34a
+__TMSetTextH:           .equ $a34b
+
+__TMOpen:               .equ $a366
+
+__TMNew2:               .equ $a401
+
+__TMNextCodeIn:         .equ $a460
+__TMSelReverse:         .equ $a462
+__TMTini:               .equ $a463
+__TMSetSelCal:          .equ $a464
+__TMActivate2:          .equ $a465
+__TMDeactivate2:        .equ $a466
+__TMCheckSel:           .equ $a467
+__TMCalPoint2:          .equ $a468
+__TMISZen:              .equ $a46a
+__TMSetDestOffset:      .equ $a46b
+__TMGetDestOffset:      .equ $a46c
+__TMGetSelect:          .equ $a46d
+__TMEventW:             .equ $a46e
+__TMUpDateExist:        .equ $a46f
+__TMNewM:               .equ $a470  ;sx-3.0
+__TMSetTextM:           .equ $a471  ;sx-3.0
+__TMSetDefKind:         .equ $a472  ;sx-3.0
+__TMGetStyle:           .equ $a473  ;sx-3.0
+__TMGetStyles:          .equ $a475  ;sx-3.0
+__TMChangeStyle:        .equ $a476  ;sx-3.0
+__TMChangeFace:         .equ $a477  ;sx-3.0
+__TMSetColor:           .equ $a478  ;sx-3.0
+__TMSetMode:            .equ $a479  ;sx-3.0
+__TMPutScrapM:          .equ $a47a  ;sx-3.0
+__TMInsertM:            .equ $a47b  ;sx-3.0
+__TMStrM:               .equ $a47c  ;sx-3.0
+__TMSetStyles:          .equ $a47d  ;sx-3.0
+__TMGetExStyles:        .equ $a47e  ;sx-3.0
+__TMGetScrap:           .equ $a47f  ;sx-3.0
+__TMGetLineWidth:       .equ $a480  ;sx-3.0
+__TMGetLineHeight:      .equ $a481  ;sx-3.0
+__TMLineToHeight:       .equ $a482  ;sx-3.0
+__TMAdjustHeight:       .equ $a483  ;sx-3.0
+__TMChangeExStyle:      .equ $a484  ;sx-3.0
+__TMAnalyzeExStyle:     .equ $a485  ;sx-3.0
+__TMSetEditMode:        .equ $a486  ;sx-3.0
+__TMCellToFont:         .equ $a487  ;sx-3.0
+__TMScaleSet:           .equ $a488  ;sx-3.0
+__TMScaleStyles:        .equ $a489  ;sx-3.0
+__TMBundleExStyle:      .equ $a48a  ;sx-3.0
+__TMSetLineHeight:      .equ $a48b  ;sx-3.0
+__TMSetTabSize:         .equ $a48c  ;sx-3.0
+__TMGetStr:             .equ $a48d  ;sx-3.0
+__TMScalePtSet:         .equ $a48e  ;sx-3.0
+__TMScalePtReSet:       .equ $a48f  ;sx-3.0
+__TMGetDefKind:         .equ $a490  ;sx-3.0
+__TMVer:                .equ $a494  ;sx-3.0
+__TMSetPage:            .equ $a495  ;sx-3.0
+__TMHeightToPage:       .equ $a496  ;sx-3.0
+__TMOffsetToPage:       .equ $a497  ;sx-3.0
+__TMPageToLine:         .equ $a498  ;sx-3.0
+__TMLineToPage:         .equ $a499  ;sx-3.0
+__TMTextWidth3:         .equ $a49a  ;sx-3.0
+__TMLineToRHeight:      .equ $a49b  ;sx-3.0
+__TMGetLineRHeight:     .equ $a49d  ;sx-3.0
+
+* タスクマン (Task Man) ----------------------- *
+
+__TSInitTsk:            .equ $a34c
+__TSInitCrtM:           .equ $a34e
+__TSTiniCrtM:           .equ $a34f
+__TSFock:               .equ $a351
+__TSExit:               .equ $a352
+__TSFockB:              .equ $a353
+__TSFockSItem:          .equ $a355
+__TSFockIcon:           .equ $a356
+__TSEventAvail:         .equ $a357
+__TSGetEvent:           .equ $a358
+__TSPostEventTsk:       .equ $a35a
+__TSGetTdb:             .equ $a35b
+__TSSetTdb:             .equ $a35c
+__TSGetWindowPos:       .equ $a35e
+__TSCommunicate:        .equ $a35f
+__TSGetID:              .equ $a360
+__TSMakeEvent:          .equ $a361
+__TSGetStartMode:       .equ $a364
+__TSSetStartMode:       .equ $a365
+__TSOpen:               .equ $a367
+__TSClose:              .equ $a368
+__TSRmDirH:             .equ $a369
+__TSCopyH:              .equ $a36a
+__TSMkDirH:             .equ $a36b
+__TSMoveH:              .equ $a36c
+__TSCreate:             .equ $a36d
+__TSDeleteH:            .equ $a36e
+__TSTrash:              .equ $a36f
+__TSFiles:              .equ $a370
+__TSNFiles:             .equ $a371
+__TSCopyP:              .equ $a372
+__TSDeleteP:            .equ $a373
+__TSRmDirP:             .equ $a374
+__TSMkDirP:             .equ $a375
+__TSMoveP:              .equ $a376
+__TSChMod:              .equ $a378
+__TSWhatFile:           .equ $a379
+__TSDeleteVoname:       .equ $a37b
+__TSCreateVoname:       .equ $a37c
+__TSSearchFileND:       .equ $a381
+__TSGetOpen:            .equ $a386
+__TSZeroDrag:           .equ $a387
+__TSPutDrag:            .equ $a388
+__TSGetDrag:            .equ $a389
+__TSBeginDrag:          .equ $a38a
+__TSEndDrag:            .equ $a38c
+__TSHideDrag:           .equ $a38d
+__TSShowDrag:           .equ $a38e
+__TSZeroScrap:          .equ $a38f
+__TSPutScrap:           .equ $a390
+__TSGetScrap:           .equ $a391
+__TSSearchTrashpath:    .equ $a397
+__TSSearchTrashfile:    .equ $a398
+__TSEmptyTrash:         .equ $a399
+__TSSearchdpb:          .equ $a39b
+__TSDrvctrl:            .equ $a39d
+__TSDrvctrl2:           .equ $a39e
+__SXCallWindM:          .equ $a3a2
+__SXCallCtrlM:          .equ $a3a3
+__SXInvalScBar:         .equ $a3aa
+__SXValidScBar:         .equ $a3ab
+__TSISRecToStr:         .equ $a3bb
+__TSCreateISFile:       .equ $a3bf
+__SXFileConnPath:       .equ $a3cc
+__SXFileInPath:         .equ $a3cd
+__SXFnamecmp:           .equ $a3d0
+__SXSearchFname:        .equ $a3d4
+__SXStoLower:           .equ $a3d8
+__SXStoUpper:           .equ $a3d9
+__SXStoUpper2:          .equ $a3da
+__TSSTOL:               .equ $a3df
+__TSLTOS:               .equ $a3e0
+__TSIUSING:             .equ $a3e1
+__SXVer:                .equ $a3e9
+__TSTakeParam:          .equ $a3ea
+__TSFindTskn:           .equ $a3f4
+__TSDriveCheckAll:      .equ $a3f7
+__TSDriveCheck:         .equ $a3f8
+__TSISRecToExec:        .equ $a3f9
+__TSGetDtopMode:        .equ $a3fa
+__TSSetDtopMode:        .equ $a3fb
+__TSSearchOpen:         .equ $a3fc
+__TSFindOwn:            .equ $a3fe
+__TSCommunicateS:       .equ $a3ff
+
+__TSSearchFile2:        .equ $a402
+__TSSearchFile:         .equ $a403
+__SXStrCmp:             .equ $a406
+__TSCreateISBadge:      .equ $a408
+__TSGetCMDS:            .equ $a40a
+__TSFockCM:             .equ $a40b
+__TSTiniTsk:            .equ $a40d
+__SXStrCpy:             .equ $a412
+__TSPostEventTsk2:      .equ $a415
+__TSAnswer:             .equ $a417
+__TSSendMes:            .equ $a418
+__TSGetMes:             .equ $a419
+__TSInitTsk2:           .equ $a41a
+__SXCallWindM2:         .equ $a41f
+__TSBeginDrag2:         .equ $a420
+__SXGetVector:          .equ $a422
+__SXSetVector:          .equ $a423
+__TSCellToStr:          .equ $a427
+__SXLockFSX:            .equ $a42a
+__SXUnlockFSX:          .equ $a42b
+__TSFockMode:           .equ $a42c
+__TSSetGraphMode:       .equ $a430
+__TSGetGraphMode:       .equ $a431
+__SXGetDispRect:        .equ $a432
+__SXSRAMVer:            .equ $a435
+__SXSRAMReset:          .equ $a436
+__SXSRAMCheck:          .equ $a437
+__TSAdjustRect:         .equ $a438
+__TSPostEventTsk3:      .equ $a43b
+__TSAnswer2:            .equ $a43e
+__TSErrDialogN:         .equ $a443
+__TSSearchFile3:        .equ $a446
+
+__TSNameToCode:         .equ $a44b  ;sx-3.0
+__TSCodeToName:         .equ $a44c  ;sx-3.0
+__TSNameToHdl:          .equ $a44d  ;sx-3.0
+
+__SXPack:               .equ $a450  ;sx-3.1
+__SXUnpack:             .equ $a451  ;sx-3.1
+__SXGetPackSize:        .equ $a452  ;sx-3.1
+__SXGetCODFList:        .equ $a453  ;sx-3.1
+__SXCellToCODF:         .equ $a454  ;sx-3.1
+
+__TSResNew:             .equ $a4a0
+__TSResOpen:            .equ $a4a1
+__TSResClose:           .equ $a4a2
+__TSResSave:            .equ $a4a3
+__TSResRemove:          .equ $a4a4
+__TSResLoad:            .equ $a4a5
+__TSResDispose:         .equ $a4a6
+__TSCurResGet:          .equ $a4a7
+__TSLastResGet:         .equ $a4a8
+__TSCurResSet:          .equ $a4a9
+__TSRscAdd:             .equ $a4aa
+__TSRscGet:             .equ $a4ab
+__TSRscRemove:          .equ $a4ac
+__TSTypeRemove:         .equ $a4ad
+__TSRscRelease:         .equ $a4ae
+__TSRscDetach:          .equ $a4af
+__TSMaxIDGet:           .equ $a4b0
+__TSHdlToRsc:           .equ $a4b1
+__TSResLinkGet:         .equ $a4b2
+__TSResRouteLink:       .equ $a4b3
+__TSResRouteGet:        .equ $a4b4
+__TSRscGet2:            .equ $a4b5
+__TSRscGet3:            .equ $a4b6
+__TSResRouteUnLink:     .equ $a4b7
+__TSMaxIDGet2:          .equ $a4b8
+__TSFind:               .equ $a4b9
+__TSCurResGet2:         .equ $a4ba
+__TSMaxIDGet3:          .equ $a4bb
+__TSResFileGet:         .equ $a4bc
+__TSResRouteFind:       .equ $a4bd
+__TSResTypeList:        .equ $a4be
+__TSResIDList:          .equ $a4bf
+__TSRscScan2:           .equ $a4c0  ;sx-3.0
+
+* プリントマン (Print Man) -------------------- *
+
+__PMInit:               .equ $a4e0
+__PMTini:               .equ $a4e1
+__PMOpen:               .equ $a4e2
+__PMClose:              .equ $a4e3
+__PMSetDefault:         .equ $a4e4
+__PMValidate:           .equ $a4e5
+__PMImageDialog:        .equ $a4e6
+__PMStrDialog:          .equ $a4e7
+__PMJobDialog:          .equ $a4e8  ;sx-3.0
+__PMEnvCopy:            .equ $a4e9
+__PMJobCopy:            .equ $a4ea
+__PMOpenImage:          .equ $a4eb
+__PMRecordPage:         .equ $a4ec
+__PMPrintPage:          .equ $a4ed
+__PMCancelPage:         .equ $a4ee
+__PMAction:             .equ $a4ef
+__PMCloseImage:         .equ $a4f0
+__PMDrawString:         .equ $a4f1
+__PMVer:                .equ $a4f2
+__PMDrvrVer:            .equ $a4f3
+__PMDrvrCtrl:           .equ $a4f4
+__PMDrvrID:             .equ $a4f5
+__PMDrvrHdl:            .equ $a4f6
+__PMMaxRect:            .equ $a4f7
+__PMSaveEnv:            .equ $a4f8
+__PMReady:              .equ $a4f9
+__PMProcPrint:          .equ $a4fa
+__PMDrvrInfo:           .equ $a4fb
+__PMGetDefDlog:         .equ $a4fc  ;sx-3.0
+__PMSetRange:           .equ $a4fd  ;sx-3.0
+__PMPutID:              .equ $a4fe  ;sx-3.0
+
+* フォントマン (Font Man) --------------------- *
+
+__FMInit:               .equ $a500
+__FMTini:               .equ $a501
+__FMGetFontList:        .equ $a502
+__FMSetCacheSize:       .equ $a503
+__FMGetCacheSize:       .equ $a504
+__FMSetSpaceWidth:      .equ $a505
+__FMGetSpaceWidth:      .equ $a506
+__FMSetTracking:        .equ $a507
+__FMGetTracking:        .equ $a508
+__FMGetKerningWidth:    .equ $a509
+__FMFontMenuSelect:     .equ $a50a
+__FMGetFontPolyData:    .equ $a50b
+
+* セマフォマン (Semaphore Man) ---------------- *
+
+__SXInitSemaphore:      .equ $a5f0  ;sx-3.0
+__SXAddSemaphore:       .equ $a5f1  ;sx-3.0
+__SXDelSemaphore:       .equ $a5f2  ;sx-3.0
+__SXFindSemaphore:      .equ $a5f3  ;sx-3.0
+
+* カラーマン (Color Man) ---------------------- *
+
+__CLInit:               .equ $a600  ;sx-3.0
+__CLTini:               .equ $a601  ;sx-3.0
+__CLNewPalet:           .equ $a602  ;sx-3.0
+__CLRefer:              .equ $a603  ;sx-3.0
+__CLDupDevicePalet:     .equ $a604  ;sx-3.0
+__CLDisposePalet:       .equ $a605  ;sx-3.0
+__CLSetCInfo:           .equ $a606  ;sx-3.0
+__CLGetCInfo:           .equ $a607  ;sx-3.0
+__CLAlloc:              .equ $a608  ;sx-3.0
+__CLAllocOne:           .equ $a609  ;sx-3.0
+__CLFree:               .equ $a60a  ;sx-3.0
+__CLFreeOne:            .equ $a60b  ;sx-3.0
+__CLActive:             .equ $a60c  ;sx-3.0
+__CLRealloc:            .equ $a60d  ;sx-3.0
+__CLLinkPalet:          .equ $a60e  ;sx-3.0
+__CLUnlinkPalet:        .equ $a60f  ;sx-3.0
+__CLSetDeviceMode:      .equ $a610  ;sx-3.0
+__CLGetDeviceMode:      .equ $a611  ;sx-3.0
+__CLGetDevice:          .equ $a612  ;sx-3.0
+__CLDelDevice:          .equ $a614  ;sx-3.0
+__CLSetDeviceRGB:       .equ $a615  ;sx-3.0
+__CLDupPalet:           .equ $a616  ;sx-3.0
+__CLCopyPalet:          .equ $a617  ;sx-3.0
+__CLSetPickEntry:       .equ $a618  ;sx-3.0
+__CLValueToRGB:         .equ $a619  ;sx-3.0
+__CLRGBToValue:         .equ $a61a  ;sx-3.0
+__CLRefer2:             .equ $a61b  ;sx-3.0
+__CLLoadText:           .equ $a61c  ;sx-3.0
+__CLValueToPalet:       .equ $a61d  ;sx-3.0
+__CLPaletToValue:       .equ $a61e  ;sx-3.0
+__CLSetScanEntry:       .equ $a61f  ;sx-3.0
+
+* ビデオマン (Video Man) ---------------------- *
+
+__VMInit:               .equ $a700  ;sx-3.0
+__VMTini:               .equ $a701  ;sx-3.0
+__VMExpand:             .equ $a710  ;sx-3.0
+__VMCompress:           .equ $a711  ;sx-3.0
+__VMExpDirect:          .equ $a712  ;sx-3.0
+__VMGetInfo:            .equ $a713  ;sx-3.0
+__VMRscInfo:            .equ $a714  ;sx-3.0
+__VMRscHdlGet:          .equ $a715  ;sx-3.0
+__VMSetCurrentID:       .equ $a716  ;sx-3.0
+__VMGetCurrentID:       .equ $a717  ;sx-3.0
+__VMGetPalette:         .equ $a718  ;sx-3.0
+__VMSetAnim:            .equ $a730  ;sx-3.0
+__VMGetAnim:            .equ $a731  ;sx-3.0
+__VMSetParam:           .equ $a732  ;sx-3.0
+__VMGetParam:           .equ $a733  ;sx-3.0
+__VMCreate:             .equ $a734  ;sx-3.0
+__VMCreateF:            .equ $a735  ;sx-3.0
+__VMOpen:               .equ $a736  ;sx-3.0
+__VMClose:              .equ $a737  ;sx-3.0
+__VMDispose:            .equ $a738  ;sx-3.0
+__VMRegistSample:       .equ $a739  ;sx-3.0
+__VMDeleteSample:       .equ $a73a  ;sx-3.0
+__VMReferSample:        .equ $a73b  ;sx-3.0
+__VMGetSample:          .equ $a73c  ;sx-3.0
+__VMGetBits:            .equ $a73d  ;sx-3.0
+__VMInsertFrame:        .equ $a73e  ;sx-3.0
+__VMDeleteFrame:        .equ $a73f  ;sx-3.0
+__VMTimeToFrame:        .equ $a740  ;sx-3.0
+__VMFrameToSample:      .equ $a741  ;sx-3.0
+__VMTrans:              .equ $a742  ;sx-3.0
+__VMPlay:               .equ $a743  ;sx-3.0
+__VMEvent:              .equ $a744  ;sx-3.0
+__VMStop:               .equ $a745  ;sx-3.0
+__VMPause:              .equ $a746  ;sx-3.0
+__VMUpdate:             .equ $a747  ;sx-3.0
+__VMSetUser:            .equ $a748  ;sx-3.0
+__VMGetUser:            .equ $a749  ;sx-3.0
+__VMDisplay:            .equ $a74a  ;sx-3.0
+
+
+* End of File --------------------------------- *
+
+.endif
+
+.list

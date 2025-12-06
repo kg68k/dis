@@ -21,8 +21,7 @@
 
 #include "version.h"
 
-#define VERSION "4.06"
-#define DATE "2025-11-28"
+#define VERSION "5.0.0"
 
 const char ProgramAndVersion[] = "dis version " VERSION;
 
@@ -42,8 +41,7 @@ const char Title[] =
 #endif
     " version " VERSION
     "\n"
-    "Copyright (C)1989-1992 K.Abe, 1994-1997 R.ShimiZu, " DATE
-    " TcbnErik.\n"
+    "Copyright (C)1989-1992 K.Abe, 1994-1997 R.ShimiZu, 2025 TcbnErik.\n"
 
 #ifdef OSKDIS
     "OS-9/68000 version by TEMPLE, 1994\n"

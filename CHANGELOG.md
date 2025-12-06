@@ -1,5 +1,23 @@
 # 変更履歴
 
+## 5.0.0 (2025-12-06)
+
+* バージョン番号をセマンティックバージョニングに変更。
+* オプション`-G`を削除。
+* ラベルファイルに属性`a`を追加(直前のプログラム領域を終了する)。
+* sxcall.macをruka-macroに差し替え。
+* SXコールのマクロ名の既定値を`SX`に変更。
+* 環境変数`dis_sxmac`を廃止し、doscall.macなどと同じ手順でsxcall.macを読み込むようにした。
+* インクルードファイル関係のオプションを整理。
+  * `--include=path`を追加。
+  * `--doscall-mac`を追加、`--exclude-doscall-mac`を`--no-doscall-mac`に変更。
+  * `--iocscall-mac`を追加、`--exclude-iocscall-mac`を`--no-iocscall-mac`に変更。
+  * `--fefunc-mac`を追加、`--exclude-fefunc-mac`を`--no-fefunc-mac`に変更。
+  * `--include-sxcall-mac=<path>`、`--sxcall-mac`、`--no-sxcall-mac`を追加。
+* ラベルファイルからラベルを削除し、プログラム領域の解析による登録も行われなかった場合に
+  存在しないラベル名が出力されていたのを、直前のラベル名+オフセットで出力するようにした。
+
+
 ## 4.06 (2025-11-28)
 
 * 誤ってヒープメモリ不足でエラー終了してしまうことがある不具合を修正

@@ -88,7 +88,7 @@ static boolean registerNewLabel(address adrs, lblmode mode) {
 */
 boolean registerLabel(address adrs, lblmode mode) {
   lblbuf* lptr;
-  const lblmode protect = ENDTABLE | SYMLABEL | DEVLABEL;
+  const lblmode protect = ENDTABLE | SYMLABEL | DEVLABEL | ABORTLABEL;
 
   if (adrs < Dis.beginTEXT || adrs > Dis.LAST) return FALSE;
 
@@ -190,6 +190,21 @@ extern lblbuf* search_label(address adrs) {
 
   search_data.label = adrs;
   return AVL_get_data_safely(AVL_search(LabelRoot, &search_data));
+}
+
+// adrs の次のラベルバッファへのポインタを返す
+extern lblbuf* previous(address adrs) {
+  lblbuf search_data;
+  avl_node* node;
+
+  if (adrs == (address)-1) return &Nomore;
+
+  search_data.label = adrs;
+
+  if ((node = AVL_search_previous(LabelRoot, &search_data)) == NULL)
+    return &Nomore;
+  else
+    return AVL_get_data(node);
 }
 
 /*

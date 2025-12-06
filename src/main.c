@@ -71,9 +71,15 @@ static void initDisVars(void) {
   d->outputLabelFile = NULL;
   d->tableFile = NULL;
 
+  d->includePath = NULL;
+  d->doscall = TRUE;
+  d->iocscall = TRUE;
+  d->fefunc = TRUE;
+  d->sxcall = FALSE;  // 既定で無効、--sxcall-macまたは-u1で有効
   d->doscallMac = "doscall.mac";
   d->iocscallMac = "iocscall.mac";
   d->fefuncMac = "fefunc.mac";
+  d->sxcallMac = "sxcall.mac";
 
   d->stringLengthMin = 3;
   d->stringWidth = STRING_WIDTH_DEFAULT;

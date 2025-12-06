@@ -18,37 +18,39 @@ static boolean tryReadfile(const IncludeSpec* spec, const char* filename,
                            const char* path);
 
 // 各パスからインクルードファイルを探し、見つけたファイルを読み込む
-//   1) ./ (-Y オプション指定時のみ)
-//   2) $dis_include/
-//   3) $include/
+//   a-1. --include=<path>
+//   b-1. ./ (-Y オプション指定時のみ)
+//   b-2. $dis_include/
+//   b-3. $include/
 //   の順に readfile() を試す。
 void readInludeFileFromEnv(const IncludeSpec* spec, IncludeEnvs* env) {
   const char* filename = *spec->filenamePtr;
-  int path_flag;
 
-  // --exclude-***call 指定時は読み込まない
-  if (filename == NULL || filename[0] == '\0') return;
+  if (Dis.includePath) {
+    // --include=<path> オプション指定時はそのパスからのみ検索する
+    if (tryReadfile(spec, filename, Dis.includePath)) return;
+  } else {
+    int path_flag = strchr(filename, ':') || strchr(filename, '/');
 
-  path_flag = strchr(filename, ':') || strchr(filename, '/');
+    if (path_flag || Dis.Y) {
+      // -Y オプション指定時はカレントディレクトリから検索する
+      // ファイル名にパスデリミタが含まれる場合もそのまま検索
+      if (readIncludeFile(spec, filename)) return;
+    }
 
-  // -Y オプション指定時はカレントディレクトリから検索する
-  // ファイル名にパスデリミタが含まれる場合もそのまま検索
-  if (path_flag || Dis.Y) {
-    if (readIncludeFile(spec, filename)) return;
+    if (!path_flag) {
+      // パスデリミタが含まれなければ環境変数 dis_include、include
+      // のパスから検索する
+      if (tryReadfile(spec, filename, env->dis_include)) return;
+      if (tryReadfile(spec, filename, env->include)) return;
+
+      if (env->dis_include == NULL && env->include == NULL)
+        err("環境変数 " ENV_dis_include ", " ENV_include
+            " が設定されていません。\n");
+    }
   }
 
-  // パスデリミタが含まれなければ環境変数 dis_include、include
-  // のパスから検索する
-  if (!path_flag) {
-    if (tryReadfile(spec, filename, env->dis_include)) return;
-    if (tryReadfile(spec, filename, env->include)) return;
-  }
-
-  if (path_flag || env->dis_include || env->include)
-    err("%s をオープンできません。\n", filename);
-  else
-    err("環境変数 " ENV_dis_include ", " ENV_include
-        " が設定されていません。\n");
+  err("%s をオープンできません。\n", filename);
 }
 
 // パスとファイル名を指定して読み込む
