@@ -21,7 +21,7 @@
 
 #include "version.h"
 
-#define VERSION "5.0.0"
+#define VERSION "5.0.1-dev"
 
 const char ProgramAndVersion[] = "dis version " VERSION;
 

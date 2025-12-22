@@ -854,7 +854,7 @@ static int ck_atoi(const char* s) {
   return atoi(s);
 }
 
-static const char usageText[] =
+static const char usageText1[] =
     "usage: dis [option] 実行ファイル名 [出力ファイル名]\n"
     "\n"
     "ファイル入力オプション:\n"
@@ -913,7 +913,10 @@ static const char usageText[] =
     "                +8 サプレスされたインデックスレジスタに対するサイズ指定(.l)のチェック\n"
     "--reltbl-zero=num  リラティブオフセットテーブルに0を認める(0:しない 1:[先頭のみ] 2:全域)\n"
     "--movem-zero=num   movem #0 を未定義命令と見なさない(0:[しない] 1:する)\n"
+    "";
 
+// 文字列が長いとgcc version 2.6.3 (68k, Human68k revision 5)で文字化けするので分けている
+static const char usageText2[] =
     "\n"
     "アセンブリ表記オプション:\n"
     "-a[num]         num 行ごとにアドレスをコメントで入れる(num を省略すると5行ごと)\n"
@@ -955,7 +958,8 @@ static const char usageText[] =
 
 static void usage(void) {
   printTitle();
-  fputs(usageText, stdout);
+  fputs(usageText1, stdout);
+  fputs(usageText2, stdout);
 
   exit(EXIT_SUCCESS);
 }
