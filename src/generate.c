@@ -732,6 +732,11 @@ static void dataout(address pc, ULONG bytes, opesize size) {
     }
   }
 
+  // サイズ不明の場合はバイト単位として圧縮を試みる
+  // 圧縮する利点はある(領域のサイズが分かりやすくなる、出力ソースコードのファイルサイズ削減)
+  // のに対し、する場合の欠点やしない利点というのが特にないため。
+  if (size == UNKNOWN) size = BYTESIZE;
+
   // BYTESIZEの場合
   canCompress = TRUE;
   bytesPerUnit = 1;
